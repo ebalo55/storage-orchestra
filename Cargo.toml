@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+members = ["./src-tauri", "libs/key-as-enum"]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["ebalo <me@ebalo.xyz>"]
+edition = "2024"
