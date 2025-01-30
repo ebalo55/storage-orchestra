@@ -1,0 +1,7 @@
+/* Hides inactive controls */
+.control {
+    &[data-inactive] {
+        opacity: 0;
+        cursor: default;
+    }
+}
