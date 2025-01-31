@@ -1,22 +1,29 @@
-import { cancel, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
-import { fetch } from "@tauri-apps/plugin-http";
-import { sendNotification } from "@tauri-apps/plugin-notification";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import {
+    cancel,
+    onUrl,
+    start,
+} from "@fabianlars/tauri-plugin-oauth";
+import {fetch} from "@tauri-apps/plugin-http";
+import {sendNotification} from "@tauri-apps/plugin-notification";
+import {openUrl} from "@tauri-apps/plugin-opener";
 import querystring from "query-string";
-import { dayjs } from "./dayjs.ts";
-import { IProviderData } from "./provider-data.interface.ts";
-import { State } from "./state.ts";
+import {
+    commands,
+    ProviderData,
+} from "../tauri-bindings.ts";
+import {dayjs} from "./dayjs.ts";
+import {State} from "./state.ts";
 
 let instance: GoogleOAuth | undefined;
 
 class GoogleOAuth {
     private _port: number = 0;
 
-    private constructor(private _providers: IProviderData[]) {}
+    private constructor(private _providers: ProviderData[]) {}
 
     /**
      * Get GoogleOAuth providers
-     * @returns {IProviderData[]}
+     * @returns {ProviderData[]}
      */
     public get providers() {
         return this._providers;
@@ -38,15 +45,15 @@ class GoogleOAuth {
 
         // Load GoogleOAuthData records from stronghold
         const storage = await State.init("");
-        let records = await storage.get("google_drive");
-        if (records.length === 0) {
-            records = "[]";
-        }
-        const providers: IProviderData[] = JSON.parse(records);
 
-        // Create GoogleOAuth instance and return it
-        instance = new GoogleOAuth(providers);
-        return instance;
+        let records = await storage.get("providers");
+        if ("providers" in records) {
+            // Create GoogleOAuth instance and return it
+            instance = new GoogleOAuth(records.providers);
+            return instance;
+        }
+
+        throw new Error("No providers found in stronghold");
     }
 
     /**
@@ -114,17 +121,24 @@ class GoogleOAuth {
 
     /**
      * Refresh OAuth token
-     * @param {IProviderData} data - The provider data to refresh
+     * @param {ProviderData} data - The provider data to refresh
      * @returns {Promise<void>}
      */
-    public async refresh(data: IProviderData) {
+    public async refresh(data: ProviderData) {
+        const refresh_token = await commands.cryptDataGetRawDataAsString(data.refresh_token);
+
+        if (refresh_token.status === "error") {
+            console.error("Error fetching refresh token:", refresh_token.error);
+            return;
+        }
+
         const response = await fetch("https://oauth2.googleapis.com/token", {
             method:  "POST",
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
             },
             body:    querystring.stringify({
-                refresh_token: data.refresh_token,
+                refresh_token,
                 client_id:     "243418232258-pi0e0sa9g3ol72c212hg7k496g51k765.apps.googleusercontent.com",
                 client_secret: "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",
                 grant_type:    "refresh_token",
