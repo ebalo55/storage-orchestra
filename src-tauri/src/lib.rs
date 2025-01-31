@@ -2,7 +2,7 @@ mod crypt;
 mod state;
 mod utility;
 
-use crate::state::state::AppStateInner;
+use crate::state::state::{AppStateInner, STATE_FILE};
 use specta::specta;
 use specta_typescript::Typescript;
 use tauri::async_runtime::RwLock;
@@ -30,9 +30,12 @@ pub fn run() {
             state::init_state,
             state::get_from_state,
             state::remove_from_state,
-            state::insert_in_state
+            state::insert_in_state,
+            crypt::crypt_data_get_raw_data_as_string,
+            crypt::crypt_data_get_raw_data,
         ])
-        .events(collect_events![]);
+        .events(collect_events![])
+        .constant("STATE_FILE", STATE_FILE);
 
     // Only export on non-release builds
     #[cfg(debug_assertions)]

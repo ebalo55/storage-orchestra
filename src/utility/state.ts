@@ -1,8 +1,11 @@
-import { invoke } from "@tauri-apps/api/core";
+import {
+    AppStateInnerKeys,
+    AppStateInnerResult,
+    commands,
+    STATE_FILE,
+} from "../tauri-bindings.ts";
 
-type JSONValue = string | number | boolean | null | object | any[];
-
-const VAULT_NAME = "state.json";
+const VAULT_NAME = STATE_FILE;
 
 class StateMarker {
     private constructor() {}
@@ -37,21 +40,28 @@ class StateMarker {
 
 class State {
     private static _instance: State | undefined;
+
     private constructor() {}
 
     /**
      * Get state instance
      * @param {string} password - The password to use for the state decryption
      * @returns {Promise<State>}
+     * @throws {Error}
      */
-    public static async init(password: string) {
+    public static async init(password: string): Promise<State> {
         // Check if stronghold is already initialized
         if (State._instance) {
             return State._instance;
         }
 
         // Initialize state with password
-        await invoke("init_state", { password });
+        const result = await commands.initState(password);
+
+        // If an error occurred, throw it
+        if (result.status === "error") {
+            throw new Error(result.error);
+        }
 
         State._instance = new State();
         return State._instance;
@@ -59,12 +69,16 @@ class State {
 
     /**
      * Insert a record into store
-     * @param key The key of the record
-     * @param data The value of the record
+     * @param value The value of the record
      * @returns Promise<void>
+     * @throws {Error}
      */
-    public async insert(key: string, data: JSONValue) {
-        await invoke("insert_in_state", { key, data });
+    public async insert(value: AppStateInnerResult) {
+        const result = await commands.insertInState(value);
+
+        if (result.status === "error") {
+            throw new Error(result.error);
+        }
     }
 
     /**
@@ -72,8 +86,14 @@ class State {
      * @param key - The key of the record to get
      * @returns Promise<string>
      */
-    public async get<V = JSONValue>(key: string): Promise<V> {
-        return await invoke("get_from_state", { key });
+    public async get(key: AppStateInnerKeys): Promise<AppStateInnerResult> {
+        const result = await commands.getFromState(key);
+
+        if (result.status === "error") {
+            throw new Error(result.error);
+        }
+
+        return result.data;
     }
 
     /**
@@ -81,13 +101,17 @@ class State {
      * @param key - The key of the record to remove
      * @returns Promise<void>
      */
-    public async remove(key: string) {
-        await invoke("remove_from_state", { key });
+    public async remove(key: AppStateInnerKeys) {
+        const result = await commands.removeFromState(key);
+
+        if (result.status === "error") {
+            throw new Error(result.error);
+        }
     }
 }
 
 export {
     StateMarker,
     State,
-    VAULT_NAME
+    VAULT_NAME,
 };

@@ -98,16 +98,15 @@ export const commands = {
      * # Arguments
      *
      * * `state` - The state to insert the data in.
-     * * `key` - The key to insert the data in.
-     * * `data` - The data to insert.
+     * * `value` - The data to insert.
      *
      * # Returns
      *
      * Nothing.
      */
-    async insertInState(key: AppStateInnerKeys, data: JsonValue): Promise<Result<null, string>> {
+    async insertInState(value: AppStateInnerResult): Promise<Result<null, string>> {
         try {
-            return {status: "ok", data: await TAURI_INVOKE("insert_in_state", {key, data})};
+            return {status: "ok", data: await TAURI_INVOKE("insert_in_state", {value})};
         }
         catch (e) {
             if (e instanceof Error) {
@@ -117,16 +116,65 @@ export const commands = {
                 return {status: "error", error: e as any};
             }
         }
-    }
-}
+    },
+    /**
+     * Get the raw data as a string
+     *
+     * # Arguments
+     *
+     * * `state` - The state to get the data from
+     * * `data` - The data to get
+     *
+     * # Returns
+     *
+     * The raw data as a string
+     */
+    async cryptDataGetRawDataAsString(data: CryptData): Promise<Result<string, string>> {
+        try {
+            return {status: "ok", data: await TAURI_INVOKE("crypt_data_get_raw_data_as_string", {data})};
+        }
+        catch (e) {
+            if (e instanceof Error) {
+                throw e;
+            }
+            else {
+                return {status: "error", error: e as any};
+            }
+        }
+    },
+    /**
+     * Get the raw data
+     *
+     * # Arguments
+     *
+     * * `state` - The state to get the data from
+     * * `data` - The data to get
+     *
+     * # Returns
+     *
+     * The raw data
+     */
+    async cryptDataGetRawData(data: CryptData): Promise<Result<number[], string>> {
+        try {
+            return {status: "ok", data: await TAURI_INVOKE("crypt_data_get_raw_data", {data})};
+        }
+        catch (e) {
+            if (e instanceof Error) {
+                throw e;
+            }
+            else {
+                return {status: "error", error: e as any};
+            }
+        }
+    },
+};
 
 /** user-defined events **/
 
 
-
 /** user-defined constants **/
 
-
+export const STATE_FILE = "state.json" as const;
 
 /** user-defined types **/
 
@@ -161,7 +209,6 @@ export type CryptData = {
      */
     mode: number
 }
-export type JsonValue = null | boolean | number | string | JsonValue[] | Partial<{ [key in string]: JsonValue }>
 /**
  * The data of a storage provider
  */
@@ -234,12 +281,16 @@ function __makeEvents__<T extends Record<string, any>>(
             get: (_, event) => {
                 const name = mappings[event as keyof T];
 
-                return new Proxy((() => {}) as any, {
-                    apply: (_, __, [window]: [__WebviewWindow__]) => ({
-                        listen: (arg: any) => window.listen(name, arg),
-                        once:   (arg: any) => window.once(name, arg),
-                        emit:   (arg: any) => window.emit(name, arg),
-                    }),
+                return new Proxy((
+                    () => {}
+                ) as any, {
+                    apply: (_, __, [window]: [__WebviewWindow__]) => (
+                        {
+                            listen: (arg: any) => window.listen(name, arg),
+                            once:   (arg: any) => window.once(name, arg),
+                            emit:   (arg: any) => window.emit(name, arg),
+                        }
+                    ),
                     get:   (_, command: keyof __EventObj__<any>) => {
                         switch (command) {
                             case "listen":

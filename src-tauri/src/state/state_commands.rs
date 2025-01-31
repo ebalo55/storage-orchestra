@@ -1,16 +1,17 @@
 use crate::crypt;
 use crate::crypt::{CryptData, CryptDataMode};
-use crate::state::provider_data::ProviderData;
 use crate::state::state::{
     AppState, AppStateInner, AppStateInnerKeys, AppStateInnerResult, STATE_FILE,
 };
-use crate::state::traits::FromStatefulJson;
+use once_cell::sync::OnceCell;
 use specta::specta;
 use std::path::PathBuf;
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager, State, command};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+
+pub static PASSWORD: OnceCell<String> = OnceCell::new();
 
 /// Sets the password for the application secure storage.
 ///
@@ -40,6 +41,8 @@ pub async fn init_state(
         // set the password
         let mut writable_state = state.write().await;
         *writable_state = stored_state;
+
+        PASSWORD.set(password.clone()).unwrap();
 
         // update the password in the state to load in memory the raw password needed to encrypt the data
         writable_state.password = CryptData::new(
@@ -122,8 +125,7 @@ pub async fn remove_from_state(
 /// # Arguments
 ///
 /// * `state` - The state to insert the data in.
-/// * `key` - The key to insert the data in.
-/// * `data` - The data to insert.
+/// * `value` - The data to insert.
 ///
 /// # Returns
 ///
@@ -132,20 +134,15 @@ pub async fn remove_from_state(
 #[specta]
 pub async fn insert_in_state(
     state: State<'_, AppState>,
-    key: AppStateInnerKeys,
-    data: serde_json::Value,
+    value: AppStateInnerResult,
 ) -> Result<(), String> {
-    match key {
-        AppStateInnerKeys::Password => {
+    match value {
+        AppStateInnerResult::password(_) => {
             return Err("Cannot insert data in password, use 'init_state' instead".to_owned());
         }
-        AppStateInnerKeys::DebouncedSaver => {
-            return Err("Cannot insert data in debounced saver".to_owned());
-        }
-        AppStateInnerKeys::Providers => {
-            let providers = ProviderData::from_stateful_json(state.clone(), data, key).await?;
+        AppStateInnerResult::providers(data) => {
             let mut writable_state = state.write().await;
-            writable_state.providers = providers;
+            writable_state.providers = data;
             drop(writable_state);
         }
     }

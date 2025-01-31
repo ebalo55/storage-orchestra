@@ -1,16 +1,19 @@
 use crate::crypt::encoding::{decode, encode};
 use crate::crypt::encryption::{decrypt, encrypt};
 use crate::crypt::hash::hash;
+use crate::state::PASSWORD;
+use crate::state::state::AppState;
 use base64ct::Encoding;
-use chacha20poly1305::aead::Aead;
 use chacha20poly1305::KeyInit;
+use chacha20poly1305::aead::Aead;
 use serde::de::Visitor;
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sha3::Digest;
+use specta::{Type, specta};
 use std::cmp::PartialEq;
 use std::fmt::{Debug, Formatter};
-use specta::Type;
+use tauri::{State, command};
 
 /// Define the working modes of the CryptData struct
 #[derive(Debug, PartialEq, Eq)]
@@ -448,4 +451,40 @@ impl CryptData {
         let raw_data = self.get_raw_data(key)?;
         Ok(String::from_utf8_lossy(&raw_data).to_string())
     }
+}
+
+/// Get the raw data as a string
+///
+/// # Arguments
+///
+/// * `state` - The state to get the data from
+/// * `data` - The data to get
+///
+/// # Returns
+///
+/// The raw data as a string
+#[command]
+#[specta]
+pub async fn crypt_data_get_raw_data_as_string(mut data: CryptData) -> Result<String, String> {
+    let key = PASSWORD.get().ok_or("Password not set")?;
+
+    Ok(data.get_raw_data_as_string(Some(key.as_bytes()))?)
+}
+
+/// Get the raw data
+///
+/// # Arguments
+///
+/// * `state` - The state to get the data from
+/// * `data` - The data to get
+///
+/// # Returns
+///
+/// The raw data
+#[command]
+#[specta]
+pub async fn crypt_data_get_raw_data(mut data: CryptData) -> Result<Vec<u8>, String> {
+    let key = PASSWORD.get().ok_or("Password not set")?;
+
+    Ok(data.get_raw_data(Some(key.as_bytes()))?)
 }
