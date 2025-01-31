@@ -1,12 +1,14 @@
 use crate::crypt;
 use crate::crypt::{CryptData, CryptDataMode};
 use crate::state::provider_data::ProviderData;
-use crate::state::state::{AppState, AppStateInner, AppStateInnerKeys, STATE_FILE};
+use crate::state::state::{
+    AppState, AppStateInner, AppStateInnerKeys, AppStateInnerResult, STATE_FILE,
+};
 use crate::state::traits::FromStatefulJson;
-use std::path::PathBuf;
 use specta::specta;
+use std::path::PathBuf;
 use tauri::path::BaseDirectory;
-use tauri::{command, AppHandle, Manager, State};
+use tauri::{AppHandle, Manager, State, command};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
@@ -70,19 +72,15 @@ pub async fn init_state(
 pub async fn get_from_state(
     state: State<'_, AppState>,
     key: AppStateInnerKeys,
-) -> Result<serde_json::Value, String> {
+) -> Result<AppStateInnerResult, String> {
     let readable_state = state.read().await;
 
     match key {
-        AppStateInnerKeys::Password => {
-            Err("Cannot get data from password".to_owned())
-        }
-        AppStateInnerKeys::DebouncedSaver => {
-            Err("Cannot get data from debounced saver".to_owned())
-        }
-        AppStateInnerKeys::Providers => {
-            Ok(serde_json::to_value(&readable_state.providers).map_err(|e| e.to_string())?)
-        }
+        AppStateInnerKeys::Password => Err("Cannot get data from password".to_owned()),
+        AppStateInnerKeys::DebouncedSaver => Err("Cannot get data from debounced saver".to_owned()),
+        AppStateInnerKeys::Providers => Ok(AppStateInnerResult::providers(
+            readable_state.providers.clone(),
+        )),
     }
 }
 

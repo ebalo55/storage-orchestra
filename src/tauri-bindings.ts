@@ -13,7 +13,7 @@ export const commands = {
             if (e instanceof Error) {
                 throw e;
             }
-			else {
+            else {
                 return {status: "error", error: e as any};
             }
         }
@@ -37,7 +37,7 @@ export const commands = {
             if (e instanceof Error) {
                 throw e;
             }
-			else {
+            else {
                 return {status: "error", error: e as any};
             }
         }
@@ -54,7 +54,7 @@ export const commands = {
      *
      * The data as a JSON value.
      */
-    async getFromState(key: AppStateInnerKeys): Promise<Result<JsonValue, string>> {
+    async getFromState(key: AppStateInnerKeys): Promise<Result<AppStateInnerResult, string>> {
         try {
             return {status: "ok", data: await TAURI_INVOKE("get_from_state", {key})};
         }
@@ -62,7 +62,7 @@ export const commands = {
             if (e instanceof Error) {
                 throw e;
             }
-			else {
+            else {
                 return {status: "error", error: e as any};
             }
         }
@@ -87,7 +87,7 @@ export const commands = {
             if (e instanceof Error) {
                 throw e;
             }
-			else {
+            else {
                 return {status: "error", error: e as any};
             }
         }
@@ -113,29 +113,91 @@ export const commands = {
             if (e instanceof Error) {
                 throw e;
             }
-			else {
+            else {
                 return {status: "error", error: e as any};
             }
         }
-    },
-};
+    }
+}
 
 /** user-defined events **/
+
 
 
 /** user-defined constants **/
 
 
+
 /** user-defined types **/
 
 export type AppStateInnerKeys = "debounced_saver" | "password" | "providers"
+export type AppStateInnerResult =
+/**
+ * The password to access the secure storage
+ */
+    {
+        password: CryptData
+    } |
+    /**
+     * The list of providers
+     */
+    {
+        providers: ProviderData[]
+    }
+/**
+ * Represent some data that have been managed cryptographically
+ */
+export type CryptData = {
+    /**
+     * The cryptographically modified data
+     */
+    data: number[];
+    /**
+     * The raw data, never stored on disk (this field is never serialized)
+     */
+    raw_data: number[] | null;
+    /**
+     * The working mode of the data
+     */
+    mode: number
+}
 export type JsonValue = null | boolean | number | string | JsonValue[] | Partial<{ [key in string]: JsonValue }>
+/**
+ * The data of a storage provider
+ */
+export type ProviderData = {
+    /**
+     * The access token
+     */
+    access_token: CryptData;
+    /**
+     * The refresh token
+     */
+    refresh_token: CryptData;
+    /**
+     * The expiry date of the token (utc unix timestamp)
+     */
+    expiry: bigint;
+    /**
+     * The owner of the token (email)
+     */
+    owner: string;
+    /**
+     * The provider of the token
+     */
+    provider: StorageProvider;
+    /**
+     * The salt used to derive the encryption key
+     */
+    salt: CryptData
+}
+export type StorageProvider = "unrecognized" | "google" | "dropbox" | "onedrive" | "terabox"
 
 /** tauri-specta globals **/
 
-import { invoke as TAURI_INVOKE } from "@tauri-apps/api/core";
+import {invoke as TAURI_INVOKE} from "@tauri-apps/api/core";
 import * as TAURI_API_EVENT from "@tauri-apps/api/event";
-import { type WebviewWindow as __WebviewWindow__ } from "@tauri-apps/api/webviewWindow";
+import {type WebviewWindow as __WebviewWindow__} from "@tauri-apps/api/webviewWindow";
 
 type __EventObj__<T> = {
     listen: (
@@ -172,16 +234,12 @@ function __makeEvents__<T extends Record<string, any>>(
             get: (_, event) => {
                 const name = mappings[event as keyof T];
 
-                return new Proxy((
-                    () => {}
-                ) as any, {
-                    apply: (_, __, [ window ]: [ __WebviewWindow__ ]) => (
-                        {
-                            listen: (arg: any) => window.listen(name, arg),
-                            once:   (arg: any) => window.once(name, arg),
-                            emit:   (arg: any) => window.emit(name, arg),
-                        }
-                    ),
+                return new Proxy((() => {}) as any, {
+                    apply: (_, __, [window]: [__WebviewWindow__]) => ({
+                        listen: (arg: any) => window.listen(name, arg),
+                        once:   (arg: any) => window.once(name, arg),
+                        emit:   (arg: any) => window.emit(name, arg),
+                    }),
                     get:   (_, command: keyof __EventObj__<any>) => {
                         switch (command) {
                             case "listen":

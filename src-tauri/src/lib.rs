@@ -6,9 +6,9 @@ use crate::state::state::AppStateInner;
 use specta::specta;
 use specta_typescript::Typescript;
 use tauri::async_runtime::RwLock;
-use tauri::{command, Emitter, Manager as _, Window};
+use tauri::{Emitter, Manager as _, Window, command};
 use tauri_plugin_oauth::start;
-use tauri_specta::{collect_commands, collect_events, Builder};
+use tauri_specta::{Builder, collect_commands, collect_events};
 
 #[command]
 #[specta]
@@ -34,10 +34,16 @@ pub fn run() {
         ])
         .events(collect_events![]);
 
-    #[cfg(debug_assertions)] // <- Only export on non-release builds
-    builder
-        .export(Typescript::default(), "../src/tauri-bindings.ts")
-        .expect("Failed to export typescript bindings");
+    // Only export on non-release builds
+    #[cfg(debug_assertions)]
+    {
+        let language_exporter =
+            Typescript::default().bigint(specta_typescript::BigIntExportBehavior::BigInt);
+
+        builder
+            .export(language_exporter, "../src/tauri-bindings.ts")
+            .expect("Failed to export typescript bindings");
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())

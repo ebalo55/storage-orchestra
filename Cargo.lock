@@ -79,6 +79,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
 
 [[package]]
+name = "as-result-enum"
+version = "0.1.0"
+dependencies = [
+    "quote",
+    "serde",
+    "syn 2.0.96",
+]
+
+[[package]]
 name = "async-broadcast"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3967,6 +3976,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 name = "storage-orchestra"
 version = "0.1.0"
 dependencies = [
+    "as-result-enum",
  "async-trait",
  "base64ct",
  "chacha20poly1305",
