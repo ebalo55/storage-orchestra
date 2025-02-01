@@ -1,6 +1,6 @@
-use sha3::{Digest, Sha3_512};
-use crate::crypt::{decode, encode};
 use crate::crypt::salt::make_salt_if_missing;
+use crate::crypt::{decode, encode};
+use sha3::{Digest, Sha3_512};
 
 /// Hashes data using the SHA-3 512-bit algorithm.
 ///
@@ -19,7 +19,9 @@ pub fn hash(data: &[u8], salt: Option<&[u8]>) -> String {
     hasher.update(&salt);
     let hash = hasher.finalize().to_vec();
 
-    format!("{}.{}", encode(&hash), encode(&salt))
+    let data = [hash, salt].concat();
+
+    format!("{}", encode(&data))
 }
 
 /// Verifies a hash.
@@ -33,18 +35,9 @@ pub fn hash(data: &[u8], salt: Option<&[u8]>) -> String {
 ///
 /// Whether the hash is valid.
 pub fn verify(data: &[u8], hash: &str) -> bool {
-    let parts: Vec<&str> = hash.split('.').collect();
-    if parts.len() != 2 {
-        return false;
-    }
-
-    let hash = decode(parts[0]);
-    let salt = decode(parts[1]);
-    if hash.is_err() || salt.is_err() {
-        return false;
-    }
-    let hash = hash.unwrap();
-    let salt = salt.unwrap();
+    let raw_hash = decode(hash).unwrap();
+    let salt = &raw_hash[64..];
+    let hash = &raw_hash[..64];
 
     let mut hasher = Sha3_512::new();
     hasher.update(data);
