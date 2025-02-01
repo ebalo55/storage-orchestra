@@ -82,9 +82,9 @@ checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
 name = "as-result-enum"
 version = "0.1.0"
 dependencies = [
-    "quote",
-    "serde",
-    "syn 2.0.96",
+ "quote",
+ "serde",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -2434,8 +2434,8 @@ version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77a8165726e8236064dbb45459242600304b42a5ea24ee2948e18e023bf7ba84"
 dependencies = [
-    "overload",
-    "winapi",
+ "overload",
+ "winapi",
 ]
 
 [[package]]
@@ -3824,7 +3824,7 @@ version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
-    "lazy_static",
+ "lazy_static",
 ]
 
 [[package]]
@@ -4001,13 +4001,13 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 name = "storage-orchestra"
 version = "0.1.0"
 dependencies = [
-    "as-result-enum",
+ "as-result-enum",
  "async-trait",
  "base64ct",
  "chacha20poly1305",
  "hkdf",
  "key-as-enum",
-    "once_cell",
+ "once_cell",
  "rand 0.9.0",
  "serde",
  "serde_json",
@@ -4024,8 +4024,8 @@ dependencies = [
  "tauri-plugin-store",
  "tauri-specta",
  "tokio",
-    "tracing",
-    "tracing-subscriber",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -4664,8 +4664,8 @@ version = "1.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b9ef9bad013ada3808854ceac7b46812a6465ba368859a37e2100283d2d719c"
 dependencies = [
-    "cfg-if",
-    "once_cell",
+ "cfg-if",
+ "once_cell",
 ]
 
 [[package]]
@@ -4900,7 +4900,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e672c95779cf947c5311f83787af4fa8fffd12fb27e4993211a84bdfd9610f9c"
 dependencies = [
  "once_cell",
-    "valuable",
+ "valuable",
 ]
 
 [[package]]
@@ -4909,9 +4909,9 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee855f1f400bd0e5c02d150ae5de3840039a3f54b025156404e34c23c03f47c3"
 dependencies = [
-    "log",
-    "once_cell",
-    "tracing-core",
+ "log",
+ "once_cell",
+ "tracing-core",
 ]
 
 [[package]]
@@ -4920,12 +4920,12 @@ version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8189decb5ac0fa7bc8b96b7cb9b2701d60d48805aca84a238004d665fcc4008"
 dependencies = [
-    "nu-ansi-term",
-    "sharded-slab",
-    "smallvec",
-    "thread_local",
-    "tracing-core",
-    "tracing-log",
+ "nu-ansi-term",
+ "sharded-slab",
+ "smallvec",
+ "thread_local",
+ "tracing-core",
+ "tracing-log",
 ]
 
 [[package]]
