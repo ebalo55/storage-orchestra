@@ -15,7 +15,7 @@ import {
     Outlet,
     useNavigate,
 } from "react-router";
-import { VAULT_NAME } from "./utility/state.ts";
+import {VAULT_NAME} from "./utility/state.ts";
 
 const theme = createTheme({}),
     colorSchemeManager = localStorageColorSchemeManager({
@@ -45,9 +45,10 @@ async function shouldOnboard(navigate: NavigateFunction) {
     // If vault does not exist, navigate to onboard page
     if (!vault_exists) {
         navigate("/onboard");
+        return;
     }
 
-    // temporary redirect to onboard page
-    navigate("/onboard");
+    // If vault exists, navigate to login page
+    navigate("/login");
 }
 

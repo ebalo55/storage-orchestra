@@ -20,7 +20,7 @@ ReactDOM.createRoot(root).render(
         <BrowserRouter>
             <Routes>
                 <Route path={"/"} element={<Layout/>}>
-                    <Route index path={"/vault-access"} element={<Login/>}/>
+                    <Route index path={"/login"} element={<Login/>}/>
                     <Route path={"/onboard"} element={<Onboard/>}/>
                     <Route path={"/dashboard"} element={<Dashboard/>}/>
                 </Route>
