@@ -12,7 +12,10 @@ import {
     ProviderData,
 } from "../tauri-bindings.ts";
 import {dayjs} from "./dayjs.ts";
-import {State} from "./state.ts";
+import {
+    State,
+    StateMarker,
+} from "./state.ts";
 
 let instance: GoogleOAuth | undefined;
 
@@ -49,11 +52,19 @@ class GoogleOAuth {
         let records = await storage.get("providers");
         if ("providers" in records) {
             // Create GoogleOAuth instance and return it
-            instance = new GoogleOAuth(records.providers);
+            instance = new GoogleOAuth(records.providers.filter((provider) => provider.provider === "google"));
             return instance;
         }
 
         throw new Error("No providers found in stronghold");
+    }
+
+    /**
+     * Drop a provider by owner
+     * @param {string} owner - The owner of the provider to drop
+     */
+    public dropProvider(owner: string) {
+        this._providers = this._providers.filter((provider) => provider.owner !== owner);
     }
 
     /**
@@ -100,26 +111,6 @@ class GoogleOAuth {
     }
 
     /**
-     * Handle OAuth errors
-     * @param {string} error - The error that occurred
-     * @returns {Promise<void>}
-     * @private
-     */
-    private async handleOAuthError(error: string) {
-        console.error("Error during OAuth flow:", error);
-
-        let error_description = "An error occurred during the OAuth flow";
-        if (error === "access_denied") {
-            error_description = "Access to the OAuth flow was denied by the user";
-        }
-
-        sendNotification({
-            title: "Error during Google Drive connection",
-            body:  error_description,
-        });
-    }
-
-    /**
      * Refresh OAuth token
      * @param {ProviderData} data - The provider data to refresh
      * @returns {Promise<void>}
@@ -151,24 +142,52 @@ class GoogleOAuth {
             const now = dayjs.utc().unix();
             const expiry = now + json.expires_in;
             const owner = data.owner;
+
+            // Encrypt access token
+            const access_token = await commands.makeCryptDataFromQualifiedString(StateMarker.asSecret(json.access_token as string));
+            if (access_token.status === "error") {
+                console.error("Error encrypting access token:", access_token.error);
+                return;
+            }
+
             const new_data = {
-                access_token:  json.access_token,
+                access_token:  access_token.data,
                 refresh_token: data.refresh_token,
                 expiry,
                 owner,
-                provider: "google",
-            } as IProviderData;
+                provider:      "google",
+            } as ProviderData;
 
             // Update record
             const index = this._providers.findIndex((provider) => provider.owner === owner);
             this._providers[index] = new_data;
 
             const storage = await State.init("");
-            await storage.insert("google_drive", JSON.stringify(this._providers));
+            await storage.insert({providers: this._providers});
         }
         else {
             console.error("Error refreshing OAuth token:", response.statusText);
         }
+    }
+
+    /**
+     * Handle OAuth errors
+     * @param {string} error - The error that occurred
+     * @returns {Promise<void>}
+     * @private
+     */
+    private async handleOAuthError(error: string) {
+        console.error("Error during OAuth flow:", error);
+
+        let error_description = "An error occurred during the OAuth flow";
+        if (error === "access_denied") {
+            error_description = "Access to the OAuth flow was denied by the user";
+        }
+
+        sendNotification({
+            title: "Error during Google Drive connection",
+            body:  error_description,
+        });
     }
 
     /**
@@ -198,19 +217,34 @@ class GoogleOAuth {
             const now = dayjs.utc().unix();
             const expiry = now + json.expires_in;
             const owner = JSON.parse(atob(json.id_token.split(".")[1])).email as string;
+
+            // Encrypt access token
+            const access_token = await commands.makeCryptDataFromQualifiedString(StateMarker.asSecret(json.access_token as string));
+            if (access_token.status === "error") {
+                console.error("Error encrypting access token:", access_token.error);
+                return;
+            }
+
+            // Encrypt refresh token
+            const refresh_token = await commands.makeCryptDataFromQualifiedString(StateMarker.asSecret(json.refresh_token as string));
+            if (refresh_token.status === "error") {
+                console.error("Error encrypting refresh token:", refresh_token.error);
+                return;
+            }
+
             const data = {
-                access_token:  json.access_token,
-                refresh_token: json.refresh_token,
+                access_token:  access_token.data,
+                refresh_token: refresh_token.data,
                 expiry,
                 owner,
-                provider: "google",
-            } as IProviderData;
+                provider:      "google",
+            } as ProviderData;
 
             // Add new record
             this._providers.push(data);
 
             const storage = await State.init("");
-            await storage.insert("google_drive", JSON.stringify(this._providers));
+            await storage.insert({providers: this._providers});
         }
         else {
             console.error("Error fetching OAuth token:", response.statusText);

@@ -55,6 +55,10 @@ class State {
             return State._instance;
         }
 
+        if (!password) {
+            throw new Error("Password is required to initialize state");
+        }
+
         // Initialize state with password
         const result = await commands.initState(password);
 
