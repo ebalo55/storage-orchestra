@@ -556,7 +556,7 @@ pub async fn crypt_data_get_raw_data(mut data: CryptData) -> Result<Vec<u8>, Str
 #[command]
 #[specta]
 pub async fn make_crypt_data_from_qualified_string(data: String) -> Result<CryptData, String> {
-    debug!("Creating CryptData from qualified string: {}", data);
+    debug!("Creating CryptData from qualified string");
 
     let mode = CryptDataMode::from_string_to_u8(data.as_str());
     debug!("Mode: {}", mode);
