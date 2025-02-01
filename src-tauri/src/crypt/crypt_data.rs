@@ -1,6 +1,7 @@
 use crate::crypt::encoding::{decode, encode};
 use crate::crypt::encryption::{decrypt, encrypt};
 use crate::crypt::hash::hash;
+use crate::crypt::{DerivedKey, ENCRYPTION_KEY_LENGTH};
 use crate::state::PASSWORD;
 use crate::state::state::AppState;
 use base64ct::Encoding;
@@ -14,6 +15,7 @@ use specta::{Type, specta};
 use std::cmp::PartialEq;
 use std::fmt::{Debug, Formatter};
 use tauri::{State, command};
+use tracing::{debug, error};
 
 /// Define the working modes of the CryptData struct
 #[derive(Debug, PartialEq, Eq)]
@@ -183,6 +185,8 @@ pub struct CryptData {
     raw_data: Option<Vec<u8>>,
     /// The working mode of the data
     mode: u8,
+    /// The salt applied when deriving the encryption key
+    salt: Option<Vec<u8>>,
 }
 
 impl Serialize for CryptData {
@@ -211,6 +215,12 @@ impl Serialize for CryptData {
         }
 
         state.serialize_field("mode", &this.mode)?;
+
+        if let Some(salt) = &this.salt {
+            state.serialize_field("salt", encode(salt).as_str())?;
+        } else {
+            state.serialize_field("salt", &None::<Vec<u8>>)?;
+        }
         state.end()
     }
 }
@@ -218,13 +228,14 @@ impl Serialize for CryptData {
 impl<'ext_de> Deserialize<'ext_de> for CryptData {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'ext_de>,
+        D: Deserializer<'ext_de>,
     {
         #[derive(Deserialize)]
         #[serde(field_identifier, rename_all = "lowercase")]
         enum Field {
             Data,
             Mode,
+            Salt,
         };
 
         struct CryptDataVisitor;
@@ -241,6 +252,7 @@ impl<'ext_de> Deserialize<'ext_de> for CryptData {
             {
                 let mut data = None;
                 let mut mode = None;
+                let mut salt = None;
 
                 while let Some(key) = map.next_key()? {
                     match key {
@@ -249,6 +261,9 @@ impl<'ext_de> Deserialize<'ext_de> for CryptData {
                         }
                         Field::Mode => {
                             mode = Some(map.next_value::<u8>()?);
+                        }
+                        Field::Salt => {
+                            salt = map.next_value::<Option<String>>()?;
                         }
                     }
                 }
@@ -268,6 +283,12 @@ impl<'ext_de> Deserialize<'ext_de> for CryptData {
                 crypt_data.data = data.as_bytes().to_vec();
                 crypt_data.mode = mode;
 
+                if salt.is_some() {
+                    crypt_data.salt = Some(
+                        decode(salt.unwrap().as_str()).map_err(|e| serde::de::Error::custom(e))?,
+                    );
+                }
+
                 Ok(crypt_data)
             }
         }
@@ -277,7 +298,7 @@ impl<'ext_de> Deserialize<'ext_de> for CryptData {
 }
 
 impl Debug for CryptData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut pending_output = f.debug_struct("CryptData");
         pending_output.field("data", &self.data);
 
@@ -286,7 +307,10 @@ impl Debug for CryptData {
         #[cfg(not(debug_assertions))]
         pending_output.field("raw_data", &"<hidden>");
 
-        pending_output.field("mode", &self.mode).finish()
+        pending_output
+            .field("mode", &self.mode)
+            .field("salt", &self.salt)
+            .finish()
     }
 }
 
@@ -325,6 +349,7 @@ impl CryptData {
             raw_data: Some(raw_data),
             data: Vec::new(),
             mode,
+            salt: None,
         };
 
         // Hash, encrypt, and encode the data if needed
@@ -372,7 +397,18 @@ impl CryptData {
     /// Nothing
     fn encrypt(&mut self, key: &[u8]) -> Result<(), String> {
         if CryptDataMode::should_encrypt(self.mode) {
-            self.data = encrypt(&self.raw_data.as_ref().unwrap(), &key)?;
+            // Derive the key using the salt if it exists or a new one will be generated during the process
+            let derived_key = if let Some(salt) = &self.salt {
+                DerivedKey::from_vec(key.to_vec(), Some(salt), ENCRYPTION_KEY_LENGTH as u8)?
+            } else {
+                DerivedKey::from_vec(key.to_vec(), None, ENCRYPTION_KEY_LENGTH as u8)?
+            };
+
+            // store the salt
+            self.salt = Some(derived_key.salt);
+
+            // finally perform the encryption
+            self.data = encrypt(&self.raw_data.as_ref().unwrap(), &derived_key.key)?;
         }
 
         Ok(())
@@ -389,7 +425,17 @@ impl CryptData {
     /// Nothing
     fn decrypt(&mut self, key: &[u8]) -> Result<(), String> {
         if CryptDataMode::should_encrypt(self.mode) {
-            self.raw_data = Some(decrypt(&self.data, &key)?);
+            if self.salt.is_none() {
+                error!("Broken encryption, salt is missing");
+                return Err("Broken encryption, salt is missing".to_owned());
+            }
+            let salt = self.salt.clone().unwrap();
+
+            // Derive the key using the salt
+            let derived_key =
+                DerivedKey::from_vec(key.to_vec(), Some(&salt), ENCRYPTION_KEY_LENGTH as u8)?;
+
+            self.raw_data = Some(decrypt(&self.data, &derived_key.key)?);
         }
 
         Ok(())
@@ -487,4 +533,43 @@ pub async fn crypt_data_get_raw_data(mut data: CryptData) -> Result<Vec<u8>, Str
     let key = PASSWORD.get().ok_or("Password not set")?;
 
     Ok(data.get_raw_data(Some(key.as_bytes()))?)
+}
+
+/// Create a new CryptData struct using a fully qualified string
+///
+/// # Arguments
+///
+/// * `data` - The fully qualified string
+///
+/// # Returns
+///
+/// The CryptData struct
+///
+/// # Example
+///
+/// ```typescript
+/// const data = "example string";
+/// const qualified_data = StateMarker.asSecret(data);
+///
+/// const crypt_data = await invoke("make_crypt_data_from_qualified_string", {data: qualified_data});
+/// ```
+#[command]
+#[specta]
+pub async fn make_crypt_data_from_qualified_string(data: String) -> Result<CryptData, String> {
+    debug!("Creating CryptData from qualified string: {}", data);
+
+    let mode = CryptDataMode::from_string_to_u8(data.as_str());
+    debug!("Mode: {}", mode);
+
+    let data = CryptDataMode::strip_string_mode(data.as_str())
+        .as_bytes()
+        .to_vec();
+
+    if mode == 0 {
+        return Err("No mode set".to_owned());
+    }
+
+    let key = PASSWORD.get().ok_or("Password not set")?;
+
+    Ok(CryptData::new(data, mode, Some(key.as_bytes())))
 }
