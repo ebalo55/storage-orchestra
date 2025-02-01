@@ -1,5 +1,9 @@
 import "@mantine/carousel/styles.css";
-import { Carousel, CarouselSlide, Embla } from "@mantine/carousel";
+import {
+    Carousel,
+    CarouselSlide,
+    Embla,
+} from "@mantine/carousel";
 import {
     ActionIcon,
     Button,
@@ -16,63 +20,99 @@ import {
     ThemeIcon,
     Title,
 } from "@mantine/core";
-import { useForm } from "@mantine/form";
+import {
+    useForm,
+    UseFormReturnType,
+} from "@mantine/form";
 import {
     IconArrowRightDashed,
     IconBrandGoogleDrive,
-    IconBrandOnedrive,
-    IconCloudComputing,
+    IconCloud,
     IconTrash,
 } from "@tabler/icons-react";
-import { EmblaCarouselType } from "embla-carousel-react";
-import { yupResolver } from "mantine-form-yup-resolver";
-import { diff, title } from "radash";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import {EmblaCarouselType} from "embla-carousel-react";
+import {yupResolver} from "mantine-form-yup-resolver";
+import {
+    all,
+    title,
+} from "radash";
+import {
+    Dispatch,
+    SetStateAction,
+    useEffect,
+    useState,
+} from "react";
+import {
+    NavigateFunction,
+    useNavigate,
+} from "react-router";
 import * as yup from "yup";
 import classes from "./assets/carousel.module.css";
-import { GoogleDriveSignIn } from "./components/google-drive-sign-in.tsx";
-import { GoogleOAuth } from "./utility/google-auth.ts";
-import { IProviderData } from "./utility/provider-data.interface.ts";
-import { State } from "./utility/state.ts";
+import {GoogleDriveSignIn} from "./components/google-drive-sign-in.tsx";
+import {ProviderData} from "./tauri-bindings.ts";
+import {GoogleOAuth} from "./utility/google-auth.ts";
+import {State} from "./utility/state.ts";
+
+type StrongholdFormValues = {
+    password: string
+    repeat_password: string
+}
+
+type StrongholdForm = UseFormReturnType<StrongholdFormValues, (values: StrongholdFormValues) => StrongholdFormValues>
 
 /**
  * Sets up the stronghold
- * @param {string} password - The password to use for the stronghold
+ * @param values - The values from the form
  * @param {React.Dispatch<React.SetStateAction<boolean>>} set_status - The function to set the status of the stronghold
  *     setup
  * @param embla - The carousel instance
+ * @param form - The stronghold form
  * @returns {Promise<void>}
  */
-async function setupStronghold(
-    {password}: {
+async function setupState(
+    values: {
         password: string,
         repeat_password: string,
     },
     set_status: Dispatch<SetStateAction<boolean>>,
     embla: Embla | null,
-) {
+    form: StrongholdForm,
+): Promise<void> {
+    console.log("Setting up state");
     set_status(true);
-    await State.init(password);
-    set_status(false);
-    embla?.scrollNext();
+    try {
+        await State.init(values.password);
+
+        set_status(false);
+        embla?.scrollNext();
+    }
+    catch (e) {
+        if (e instanceof Error) {
+            console.error("Error setting up state", e);
+
+            form.setErrors({
+                "password": `An error occurred while setting up the state: ${ e.message.toLowerCase() }`,
+            });
+        }
+        set_status(false);
+    }
 }
 
 /**
  * Updates the providers list
- * @param {React.Dispatch<React.SetStateAction<IProviderData[]>>} setProviders
+ * @param {React.Dispatch<React.SetStateAction<ProviderData[]>>} setProviders
  * @returns {number}
  */
-function updateProviders(setProviders: Dispatch<SetStateAction<IProviderData[]>>) {
+function updateProviders(setProviders: Dispatch<SetStateAction<ProviderData[]>>) {
     return setInterval(async () => {
         const google = await GoogleOAuth.init();
 
         setProviders((providers) => {
-            const google_providers = providers.filter(v => v.provider === "google");
-            const new_google_providers = diff(google.providers, google_providers, (i) => i.owner);
+            const non_google_providers = providers.filter(v => v.provider !== "google");
 
             return [
-                ...providers,
-                ...new_google_providers,
+                ...non_google_providers,
+                ...google.providers,
             ];
         });
     }, 5000);
@@ -80,42 +120,44 @@ function updateProviders(setProviders: Dispatch<SetStateAction<IProviderData[]>>
 
 /**
  * Drops a provider
- * @param {IProviderData} provider - The provider to drop
+ * @param {ProviderData} provider - The provider to drop
  * @returns {Promise<void>}
  */
-async function dropProvider(provider: IProviderData): Promise<void> {
+async function dropProvider(provider: ProviderData): Promise<void> {
     console.log("Dropping provider", provider);
-    const stronghold = await State.init("");
+    const state = await State.init("");
 
-    let provider_name = "";
-    switch (provider.provider) {
-        case "google":
-            provider_name = "google_drive";
-            break;
+    const providers = await state.get("providers");
+    if ("providers" in providers) {
+        const new_providers = providers.providers.filter((p: ProviderData) => p.owner !== provider.owner);
+        await all([
+            state.insert({providers: new_providers}),
+            GoogleOAuth.init().then((google) => google.dropProvider(provider.owner)),
+        ]);
 
+        console.log("Provider dropped");
     }
-
-    if (provider_name === "") {
-        console.error("Provider name not found");
-        return;
-    }
-
-    const providers = await stronghold.get(provider_name);
-    const new_providers = JSON.parse(providers).filter((p: IProviderData) => p.owner !== provider.owner);
-    await stronghold.insert(provider_name, new_providers);
-
-    console.log("Provider dropped", provider);
 }
 
-function embla_slide_spy(embla: EmblaCarouselType, setCurrentSlide: Dispatch<SetStateAction<number>>) {
+function emblaSlideSpy(embla: EmblaCarouselType, setCurrentSlide: Dispatch<SetStateAction<number>>) {
     setCurrentSlide(embla.selectedScrollSnap());
 }
 
-export default function Onboard() {
-    const [ embla, setEmbla ] = useState<Embla | null>(null);
-    const [current_slide, setCurrentSlide] = useState<number>(0);
+function completeSetup(providers: ProviderData[], navigate: NavigateFunction) {
+    if (providers.length === 0) {
+        return;
+    }
 
-    const [ providers, setProviders ] = useState<IProviderData[]>([]);
+    navigate("/dashboard");
+}
+
+export default function Onboard() {
+    const navigate = useNavigate();
+
+    const [ embla, setEmbla ] = useState<Embla | null>(null);
+    const [ current_slide, setCurrentSlide ] = useState<number>(0);
+
+    const [ providers, setProviders ] = useState<ProviderData[]>([]);
 
     const [ is_initiating_stronghold, setInitiatingStronghold ] = useState<boolean>(false);
     const stronghold_form = useForm({
@@ -130,23 +172,24 @@ export default function Onboard() {
     });
 
     useEffect(() => {
-        if (current_slide === 3) {
+        console.log("Current slide", current_slide);
+        if (current_slide === 2) {
             const interval = updateProviders(setProviders);
             return () => clearInterval(interval);
         }
-    }, [current_slide]);
+    }, [ current_slide ]);
 
     useEffect(() => {
         if (embla) {
-            embla.on("select", () => embla_slide_spy(embla, setCurrentSlide));
+            embla.on("select", () => emblaSlideSpy(embla, setCurrentSlide));
         }
 
         return () => {
             if (embla) {
-                embla.off("select", () => embla_slide_spy(embla, setCurrentSlide));
+                embla.off("select", () => emblaSlideSpy(embla, setCurrentSlide));
             }
         };
-    }, [embla]);
+    }, [ embla ]);
 
     return (
         <div className={ "flex h-svh relative" }>
@@ -209,10 +252,11 @@ export default function Onboard() {
                                     encrypt your data.
                                 </Text>
                                 <form className={ "mt-8" }
-                                      onSubmit={ stronghold_form.onSubmit((values) => setupStronghold(
+                                      onSubmit={ stronghold_form.onSubmit((values) => setupState(
                                           values,
                                           setInitiatingStronghold,
                                           embla,
+                                          stronghold_form,
                                       )) }>
                                     <Stack>
                                         <PasswordInput placeholder={ "Password" }
@@ -259,17 +303,8 @@ export default function Onboard() {
                                         <ScrollArea h={ rem(250) } offsetScrollbars>
                                             <Stack gap={ "sm" }>
                                                 <GoogleDriveSignIn/>
-                                                <Button leftSection={ <IconCloudComputing/> } disabled>
-                                                    Dropbox
-                                                </Button>
-                                                <Button leftSection={ <IconBrandOnedrive/> } disabled>
-                                                    OneDrive
-                                                </Button>
-                                                <Button leftSection={ <IconCloudComputing/> } disabled>
-                                                    TeraBox
-                                                </Button>
-                                                <Button leftSection={ <IconCloudComputing/> } disabled>
-                                                    Storage Orchestra
+                                                <Button leftSection={ <IconCloud/> } disabled>
+                                                    More soon ...
                                                 </Button>
                                             </Stack>
                                         </ScrollArea>
@@ -318,6 +353,12 @@ export default function Onboard() {
                                         </ScrollArea>
                                     </GridCol>
                                 </Grid>
+                                <Button rightSection={ <IconArrowRightDashed className={ "animate-bounce-right" }/> }
+                                        onClick={ () => completeSetup(providers, navigate) }
+                                        disabled={ providers.length === 0 }
+                                        className={ "ml-auto" }>
+                                    Complete setup
+                                </Button>
                             </Stack>
                         </Card>
                     </Center>
