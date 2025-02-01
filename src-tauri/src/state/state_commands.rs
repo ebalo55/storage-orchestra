@@ -42,9 +42,7 @@ pub async fn init_state(
         let mut writable_state = state.write().await;
         *writable_state = stored_state;
 
-        PASSWORD.set(password.clone()).unwrap();
-
-        // update the password in the state to load in memory the raw password needed to encrypt the data
+        // update the password in the state to ensure the password gets saved to disk
         writable_state.password = CryptData::new(
             password.as_str().as_bytes().to_vec(),
             CryptDataMode::to_u8(vec![CryptDataMode::Hash]),
@@ -54,10 +52,37 @@ pub async fn init_state(
         // immediately drop the lock
         drop(writable_state);
     } else {
-        create_state_file(state_file, password).await?;
+        create_state_file(state_file, password.clone()).await?;
+        let mut writable_state = state.write().await;
+
+        // update the password in the state to ensure the password gets saved to disk
+        writable_state.password = CryptData::new(
+            password.as_str().as_bytes().to_vec(),
+            CryptDataMode::to_u8(vec![CryptDataMode::Hash]),
+            None,
+        );
+
+        // immediately drop the lock
+        drop(writable_state);
     }
 
+    // store the password
+    PASSWORD
+        .set(password)
+        .map_err(|e| "Password already defined")?;
+
     Ok(())
+}
+
+/// Checks if the user is authenticated.
+///
+/// # Returns
+///
+/// True if the user is authenticated, false otherwise.
+#[command]
+#[specta]
+pub async fn is_authenticated() -> bool {
+    PASSWORD.get().is_some()
 }
 
 /// Gets data from the state.
@@ -100,6 +125,7 @@ pub async fn get_from_state(
 #[command]
 #[specta]
 pub async fn remove_from_state(
+    app: AppHandle,
     state: State<'_, AppState>,
     key: AppStateInnerKeys,
 ) -> Result<(), String> {
@@ -117,7 +143,8 @@ pub async fn remove_from_state(
     }
 
     drop(writable_state);
-    Ok(())
+
+    save(app, state).await
 }
 
 /// Inserts data in the state.
@@ -133,6 +160,7 @@ pub async fn remove_from_state(
 #[command]
 #[specta]
 pub async fn insert_in_state(
+    app: AppHandle,
     state: State<'_, AppState>,
     value: AppStateInnerResult,
 ) -> Result<(), String> {
@@ -147,16 +175,25 @@ pub async fn insert_in_state(
         }
     }
 
+    save(app, state).await
+}
+
+async fn save(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let readable_state = state.read().await;
+
     readable_state
         .debounced_saver
         .save(
             serde_json::to_string(&*readable_state).map_err(|e| e.to_string())?,
-            async |content: String| -> Result<(), String> {
-                let state_file =
-                    PathBuf::from(BaseDirectory::AppLocalData.variable()).join(STATE_FILE);
+            async move |content: String| -> Result<(), String> {
+                let resolver = app.path();
+                let state_file = resolver
+                    .resolve(STATE_FILE, BaseDirectory::AppLocalData)
+                    .map_err(|e| e.to_string())?;
+
                 let mut file = File::options()
-                    .append(true)
+                    .write(true)
+                    .truncate(true)
                     .create(true)
                     .open(state_file)
                     .await
@@ -218,7 +255,8 @@ async fn check_password(psw: String, state_file: PathBuf) -> Result<AppStateInne
 /// Nothing.
 async fn create_state_file(state_file: PathBuf, password: String) -> Result<(), String> {
     let state_file = File::options()
-        .append(true)
+        .write(true)
+        .truncate(true)
         .create(true)
         .open(state_file)
         .await
