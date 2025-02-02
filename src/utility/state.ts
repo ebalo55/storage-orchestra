@@ -49,22 +49,31 @@ class State {
      * @returns {Promise<State>}
      * @throws {Error}
      */
-    public static async init(password: string): Promise<State> {
+    public static async init(password: string, skip_password_initialization?: boolean): Promise<State> {
         // Check if stronghold is already initialized
         if (State._instance) {
             return State._instance;
         }
 
-        if (!password) {
-            throw new Error("Password is required to initialize state");
+        if (!password || password === "") {
+            // if no password is provided, try to get it from the rust state
+            const password = await commands.getPassword();
+            if (password.status === "error") {
+                throw new Error("Password is required to initialize state");
+            }
+
+            // reboot the state with the password
+            return State.init(password.data, true);
         }
 
-        // Initialize state with password
-        const result = await commands.initState(password);
+        if (!skip_password_initialization) {
+            // Initialize state with password
+            const result = await commands.initState(password);
 
-        // If an error occurred, throw it
-        if (result.status === "error") {
-            throw new Error(result.error);
+            // If an error occurred, throw it
+            if (result.status === "error") {
+                throw new Error(result.error);
+            }
         }
 
         State._instance = new State();

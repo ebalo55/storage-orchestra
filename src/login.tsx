@@ -19,8 +19,8 @@ import {
     useNavigate,
 } from "react-router";
 import * as yup from "yup";
-import {commands} from "./tauri-bindings.ts";
 import {ensureIsAuthenticated} from "./utility/ensure-is-autenticated.ts";
+import {State} from "./utility/state.ts";
 
 type LoginValues = {
     password: string;
@@ -29,16 +29,17 @@ type LoginValues = {
 type LoginForm = UseFormReturnType<LoginValues, (values: LoginValues) => LoginValues>;
 
 async function login(values: LoginValues, form: LoginForm, navigate: NavigateFunction) {
-    const result = await commands.initState(values.password);
-
-    if (result.status === "error") {
-        form.setErrors({
-            password: result.error
-        });
-        return;
+    try {
+        await State.init(values.password);
+        navigate("/dashboard");
     }
-
-    navigate("/dashboard");
+    catch (e) {
+        if (e instanceof Error) {
+            form.setErrors({
+                password: e.message,
+            });
+        }
+    }
 }
 
 export default function Login() {
@@ -68,7 +69,7 @@ export default function Login() {
                             <Text className={ "text-center !font-semibold" } c={"dark.4"}>Sign in to your account</Text>
                         </div>
                         <PasswordInput placeholder={ "Password" } {...login_form.getInputProps("password")}/>
-                        <Button onClick={ () => navigate("/dashboard") } fullWidth>Sign in</Button>
+                        <Button type={"submit"} fullWidth>Sign in</Button>
                     </Stack>
                 </form>
             </Card>
