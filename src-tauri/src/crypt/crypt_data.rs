@@ -1,7 +1,7 @@
 use crate::crypt::encoding::{decode, encode};
 use crate::crypt::encryption::{decrypt, encrypt};
 use crate::crypt::hash::hash;
-use crate::crypt::{DerivedKey, ENCRYPTION_KEY_LENGTH};
+use crate::crypt::{CryptDataMode, DerivedKey, ENCRYPTION_KEY_LENGTH, ENCRYPTION_NONCE_LENGTH};
 use crate::state::PASSWORD;
 use crate::state::state::AppState;
 use base64ct::Encoding;
@@ -16,165 +16,6 @@ use std::cmp::PartialEq;
 use std::fmt::{Debug, Formatter};
 use tauri::{State, command};
 use tracing::{debug, error};
-
-/// Define the working modes of the CryptData struct
-#[derive(Debug, PartialEq, Eq)]
-pub enum CryptDataMode {
-    Hash = 0b001,
-    Encode = 0b010,
-    Encrypt = 0b100,
-    ModifiedDuringSerialization = 0b1000_0000,
-}
-
-impl CryptDataMode {
-    pub fn strip_string_mode(mode: &str) -> &str {
-        if mode.starts_with("hash:") {
-            return mode.strip_prefix("hash:").unwrap();
-        }
-        if mode.starts_with("encode:") {
-            return mode.strip_prefix("encode:").unwrap();
-        }
-        if mode.starts_with("secret:") {
-            return mode.strip_prefix("secret:").unwrap();
-        }
-
-        mode
-    }
-    /// Convert a u8 to the working modes
-    ///
-    /// # Arguments
-    ///
-    /// * `mode` - The u8 representation of the working modes
-    ///
-    /// # Returns
-    ///
-    /// The working modes
-    pub fn from_u8(mode: u8) -> Vec<Self> {
-        let mut modes = Vec::new();
-
-        if Self::should_hash(mode) {
-            modes.push(CryptDataMode::Hash);
-        }
-        if Self::should_encode(mode) {
-            modes.push(CryptDataMode::Encode);
-        }
-        if Self::should_encrypt(mode) {
-            modes.push(CryptDataMode::Encrypt);
-        }
-        if Self::has_been_modified_during_serialization(mode) {
-            modes.push(CryptDataMode::ModifiedDuringSerialization);
-        }
-
-        modes
-    }
-
-    /// Convert the working modes to a u8
-    ///
-    /// # Arguments
-    ///
-    /// * `modes` - The working modes
-    ///
-    /// # Returns
-    ///
-    /// The u8 representation of the working modes
-    pub fn to_u8(modes: Vec<Self>) -> u8 {
-        let mut mode = 0;
-
-        for m in modes {
-            mode |= m as u8;
-        }
-
-        mode
-    }
-
-    /// Check if the data should be hashed
-    ///
-    /// # Arguments
-    ///
-    /// * `mode` - The working mode of the data
-    ///
-    /// # Returns
-    ///
-    /// Whether the data should be hashed
-    pub fn should_hash(mode: u8) -> bool {
-        mode & CryptDataMode::Hash as u8 != 0
-    }
-
-    /// Check if the data should be encoded
-    ///
-    /// # Arguments
-    ///
-    /// * `mode` - The working mode of the data
-    ///
-    /// # Returns
-    ///
-    /// Whether the data should be encoded
-    pub fn should_encode(mode: u8) -> bool {
-        mode & CryptDataMode::Encode as u8 != 0
-    }
-
-    /// Check if the data should be encrypted
-    ///
-    /// # Arguments
-    ///
-    /// * `mode` - The working mode of the data
-    ///
-    /// # Returns
-    ///
-    /// Whether the data should be encrypted
-    pub fn should_encrypt(mode: u8) -> bool {
-        mode & CryptDataMode::Encrypt as u8 != 0
-    }
-
-    /// Convert a string to the working modes
-    ///
-    /// # Arguments
-    ///
-    /// * `mode` - A string containing a prefixed working mode
-    pub fn from_string(mode: &str) -> Vec<Self> {
-        let mut modes = Vec::new();
-
-        if mode.starts_with("hash:") {
-            modes.push(CryptDataMode::Hash);
-        }
-        if mode.starts_with("encode:") {
-            modes.push(CryptDataMode::Encode);
-        }
-        if mode.starts_with("secret:") {
-            modes.push(CryptDataMode::Encrypt);
-            modes.push(CryptDataMode::Encode);
-        }
-
-        modes
-    }
-
-    /// Convert a string to the working mode value
-    ///
-    /// # Arguments
-    ///
-    /// * `mode` - A string containing a prefixed working mode
-    ///
-    /// # Returns
-    ///
-    /// The working mode value
-    pub fn from_string_to_u8(mode: &str) -> u8 {
-        let modes = Self::from_string(mode);
-        Self::to_u8(modes)
-    }
-
-    /// Check if the data has been modified during serialization
-    ///
-    /// # Arguments
-    ///
-    /// * `mode` - The working mode of the data
-    ///
-    /// # Returns
-    ///
-    /// Whether the data has been modified during serialization
-    pub fn has_been_modified_during_serialization(mode: u8) -> bool {
-        mode & CryptDataMode::ModifiedDuringSerialization as u8 != 0
-    }
-}
 
 /// Represent some data that have been managed cryptographically
 #[derive(Clone, Default, Type)]
@@ -195,7 +36,7 @@ impl Serialize for CryptData {
         S: Serializer,
     {
         let mut this = self.clone();
-        let mut state = serializer.serialize_struct("CryptData", 2)?;
+        let mut state = serializer.serialize_struct("CryptData", 3)?;
 
         // If the data is already encoded or hashed, serialize it as a string
         if CryptDataMode::should_encode(this.mode) || CryptDataMode::should_hash(this.mode) {
@@ -282,6 +123,7 @@ impl<'ext_de> Deserialize<'ext_de> for CryptData {
                 let mut crypt_data = CryptData::default();
                 crypt_data.data = data.as_bytes().to_vec();
                 crypt_data.mode = mode;
+                crypt_data.raw_data = None;
 
                 if salt.is_some() {
                     crypt_data.salt = Some(
@@ -293,7 +135,7 @@ impl<'ext_de> Deserialize<'ext_de> for CryptData {
             }
         }
 
-        deserializer.deserialize_struct("CryptData", &["mode", "data"], CryptDataVisitor)
+        deserializer.deserialize_struct("CryptData", &["mode", "data", "salt"], CryptDataVisitor)
     }
 }
 
@@ -382,7 +224,16 @@ impl CryptData {
     /// Nothing
     fn encode(&mut self) {
         if CryptDataMode::should_encode(self.mode) {
-            self.data = encode(&self.raw_data.as_ref().unwrap()).as_bytes().to_vec();
+            debug!("Encoding data");
+
+            let data = if CryptDataMode::should_encrypt(self.mode) {
+                debug!("Encryption has been performed, using data from previous step(s)");
+                &self.data
+            } else {
+                self.raw_data.as_ref().unwrap()
+            };
+
+            self.data = encode(data).as_bytes().to_vec();
         }
     }
 
@@ -397,18 +248,23 @@ impl CryptData {
     /// Nothing
     fn encrypt(&mut self, key: &[u8]) -> Result<(), String> {
         if CryptDataMode::should_encrypt(self.mode) {
+            debug!("Data is not encrypted, encrypting it");
+
             // Derive the key using the salt if it exists or a new one will be generated during the process
             let derived_key = if let Some(salt) = &self.salt {
                 DerivedKey::from_vec(key.to_vec(), Some(salt), ENCRYPTION_KEY_LENGTH as u8)?
             } else {
                 DerivedKey::from_vec(key.to_vec(), None, ENCRYPTION_KEY_LENGTH as u8)?
             };
+            debug!("Key derived successfully");
 
             // store the salt
             self.salt = Some(derived_key.salt);
+            debug!("Salt stored");
 
             // finally perform the encryption
             self.data = encrypt(&self.raw_data.as_ref().unwrap(), &derived_key.key)?;
+            debug!("Data encrypted successfully");
         }
 
         Ok(())
@@ -425,17 +281,29 @@ impl CryptData {
     /// Nothing
     fn decrypt(&mut self, key: &[u8]) -> Result<(), String> {
         if CryptDataMode::should_encrypt(self.mode) {
+            debug!("Data is encrypted, decrypting it");
+
             if self.salt.is_none() {
                 error!("Broken encryption, salt is missing");
                 return Err("Broken encryption, salt is missing".to_owned());
             }
             let salt = self.salt.clone().unwrap();
+            debug!("Salt correctly retrieved");
 
-            // Derive the key using the salt
+            debug!("Deriving key from salt");
             let derived_key =
                 DerivedKey::from_vec(key.to_vec(), Some(&salt), ENCRYPTION_KEY_LENGTH as u8)?;
+            debug!("Key derived successfully");
 
-            self.raw_data = Some(decrypt(&self.data, &derived_key.key)?);
+            let data = if CryptDataMode::should_encode(self.mode) {
+                debug!("Data have been encoded, using data from previous step(s)");
+                self.raw_data.as_ref().unwrap()
+            } else {
+                &self.data
+            };
+
+            self.raw_data = Some(decrypt(data, &derived_key.key)?);
+            debug!("Data decrypted successfully");
         }
 
         Ok(())
@@ -448,8 +316,12 @@ impl CryptData {
     /// Nothing
     fn decode(&mut self) -> Result<(), String> {
         if CryptDataMode::should_encode(self.mode) {
+            debug!("Data is encoded, decoding it");
+
             let string = String::from_utf8_lossy(&self.data).to_string();
             self.raw_data = Some(decode(string.as_str())?);
+
+            debug!("Data decoded successfully");
         }
 
         Ok(())
@@ -467,6 +339,7 @@ impl CryptData {
     pub fn get_raw_data(&mut self, key: Option<&[u8]>) -> Result<Vec<u8>, String> {
         // If the raw data is already set, return it
         if self.raw_data.is_some() {
+            debug!("Raw data already set, returning it");
             Ok(self.raw_data.clone().unwrap())
         } else {
             // Otherwise, decode the data, decrypt it if needed, and return it
@@ -477,6 +350,7 @@ impl CryptData {
             }
 
             if self.raw_data.is_none() {
+                error!("Raw data unset, is this a hash?");
                 return Err("Raw data unset, is this a hash?".to_owned());
             }
 
@@ -512,6 +386,7 @@ impl CryptData {
 #[command]
 #[specta]
 pub async fn crypt_data_get_raw_data_as_string(mut data: CryptData) -> Result<String, String> {
+    debug!("Getting raw data as string from {:?}", data);
     let key = PASSWORD.get().ok_or("Password not set")?;
 
     Ok(data.get_raw_data_as_string(Some(key.as_bytes()))?)
@@ -530,6 +405,7 @@ pub async fn crypt_data_get_raw_data_as_string(mut data: CryptData) -> Result<St
 #[command]
 #[specta]
 pub async fn crypt_data_get_raw_data(mut data: CryptData) -> Result<Vec<u8>, String> {
+    debug!("Getting raw data from {:?}", data);
     let key = PASSWORD.get().ok_or("Password not set")?;
 
     Ok(data.get_raw_data(Some(key.as_bytes()))?)
@@ -572,4 +448,171 @@ pub async fn make_crypt_data_from_qualified_string(data: String) -> Result<Crypt
     let key = PASSWORD.get().ok_or("Password not set")?;
 
     Ok(CryptData::new(data, mode, Some(key.as_bytes())))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::crypt::verify;
+
+    #[test]
+    fn test_new() {
+        let data = vec![1, 2, 3];
+        let mode = CryptDataMode::Encode as u8;
+        let crypt_data = CryptData::new(data.clone(), mode, None);
+        assert_eq!(crypt_data.raw_data.unwrap(), data);
+        assert!(!crypt_data.data.is_empty());
+        assert_eq!(crypt_data.mode, mode);
+    }
+
+    #[test]
+    fn test_hash() {
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Hash as u8, None);
+        assert!(!data.data.is_empty());
+        assert!(verify(
+            vec![1, 2, 3].as_slice(),
+            String::from_utf8_lossy(&data.data).to_string().as_str()
+        ));
+    }
+
+    #[test]
+    fn test_encode() {
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encode as u8, None);
+        data.encode();
+        assert!(!data.data.is_empty());
+        assert_eq!("AQID", String::from_utf8_lossy(&data.data).to_string());
+    }
+
+    #[test]
+    fn test_encrypt() {
+        let key = b"supersecretkey";
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encrypt as u8, Some(key));
+        assert!(!data.data.is_empty());
+        assert!(data.salt.is_some());
+    }
+
+    #[test]
+    fn test_decrypt() {
+        let key = b"supersecretkey";
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encrypt as u8, Some(key));
+        data.decrypt(key).unwrap();
+        assert_eq!(data.raw_data.unwrap(), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_get_raw_data() {
+        let key = b"supersecretkey";
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encrypt as u8, Some(key));
+        let raw_data = data.get_raw_data(Some(key)).unwrap();
+        assert_eq!(raw_data, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_get_raw_data_as_string() {
+        let key = b"supersecretkey";
+        let mut data = CryptData::new(
+            b"test string".to_vec(),
+            CryptDataMode::Encrypt as u8,
+            Some(key),
+        );
+        let raw_data_str = data.get_raw_data_as_string(Some(key)).unwrap();
+        assert_eq!(raw_data_str, "test string");
+    }
+
+    #[test]
+    fn test_get_raw_data_with_secret_mode() {
+        let key = b"supersecretkey";
+        let mut data = CryptData::new(
+            vec![1, 2, 3],
+            CryptDataMode::to_u8(vec![CryptDataMode::Encode, CryptDataMode::Encrypt]),
+            Some(key),
+        );
+        let raw_data = data.get_raw_data(Some(key)).unwrap();
+        assert_eq!(raw_data, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_get_raw_data_as_string_with_secret_mode() {
+        let key = b"supersecretkey";
+        let mut data = CryptData::new(
+            b"test string".to_vec(),
+            CryptDataMode::to_u8(vec![CryptDataMode::Encode, CryptDataMode::Encrypt]),
+            Some(key),
+        );
+        let raw_data_str = data.get_raw_data_as_string(Some(key)).unwrap();
+        assert_eq!(raw_data_str, "test string");
+    }
+
+    #[test]
+    fn test_can_get_raw_data_multiple_times() {
+        let key = b"supersecretkey";
+        let mut data = CryptData::new(
+            b"test string".to_vec(),
+            CryptDataMode::to_u8(vec![CryptDataMode::Encode, CryptDataMode::Encrypt]),
+            Some(key),
+        );
+        let raw_data_str = data.get_raw_data_as_string(Some(key)).unwrap();
+        assert_eq!(raw_data_str, "test string");
+        let raw_data_str_2 = data.get_raw_data_as_string(Some(key)).unwrap();
+        assert_eq!(raw_data_str_2, "test string");
+    }
+
+    #[tokio::test]
+    async fn test_make_crypt_data_from_qualified_string() {
+        let key = b"supersecretkey";
+        let _ = PASSWORD.set(String::from_utf8_lossy(key).to_string());
+
+        let qualified_data = "secret:test string".to_owned();
+        let mut crypt_data = make_crypt_data_from_qualified_string(qualified_data)
+            .await
+            .unwrap();
+        let raw_data_str = crypt_data.get_raw_data_as_string(Some(key)).unwrap();
+        assert_eq!(raw_data_str, "test string");
+    }
+
+    #[tokio::test]
+    async fn test_crypt_data_get_raw_data_as_string() {
+        let key = b"supersecretkey";
+        let _ = PASSWORD.set(String::from_utf8_lossy(key).to_string());
+
+        let qualified_data = "secret:test string".to_owned();
+        let crypt_data = make_crypt_data_from_qualified_string(qualified_data)
+            .await
+            .unwrap();
+        let raw_data_str = crypt_data_get_raw_data_as_string(crypt_data).await.unwrap();
+        assert_eq!(raw_data_str, "test string");
+    }
+
+    #[tokio::test]
+    async fn test_crypt_data_get_raw_data() {
+        let key = b"supersecretkey";
+        let _ = PASSWORD.set(String::from_utf8_lossy(key).to_string());
+
+        let qualified_data = "secret:test string".to_owned();
+        let crypt_data = make_crypt_data_from_qualified_string(qualified_data)
+            .await
+            .unwrap();
+        let raw_data = crypt_data_get_raw_data(crypt_data).await.unwrap();
+        assert_eq!(raw_data, "test string".as_bytes());
+    }
+
+    #[test]
+    fn test_serialize() {
+        let key = b"supersecretkey";
+        let mut data = CryptData::new(
+            b"test string".to_vec(),
+            CryptDataMode::to_u8(vec![CryptDataMode::Encode, CryptDataMode::Encrypt]),
+            Some(key),
+        );
+        let serialized = serde_json::to_string(&data).unwrap();
+        let mut deserialized = serde_json::from_str::<CryptData>(serialized.as_str()).unwrap();
+
+        assert_eq!(data.data, deserialized.data);
+        assert_eq!(data.salt, deserialized.salt);
+        assert_eq!(data.mode, deserialized.mode);
+
+        let original_raw_data = data.get_raw_data(Some(key)).unwrap();
+        let deserialized_raw_data = deserialized.get_raw_data(Some(key)).unwrap();
+        assert_eq!(original_raw_data, deserialized_raw_data);
+    }
 }

@@ -49,7 +49,11 @@ impl DerivedKey {
     /// # Returns
     ///
     /// The derived key.
-    pub fn from_vec(password: Vec<u8>, salt: Option<&[u8]>, key_length: u8) -> Result<Self, String> {
+    pub fn from_vec(
+        password: Vec<u8>,
+        salt: Option<&[u8]>,
+        key_length: u8,
+    ) -> Result<Self, String> {
         let password = String::from_utf8_lossy(password.as_slice()).to_string();
         DerivedKey::new(password.as_str(), salt, key_length)
     }
@@ -69,5 +73,51 @@ impl DerivedKey {
         self.key = instance.key;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new() {
+        let password = "password";
+        let key_length = 32;
+        let derived_key = DerivedKey::new(password, None, key_length).unwrap();
+        assert_eq!(derived_key.key.len(), key_length as usize);
+        assert_eq!(derived_key.salt.len(), 32); // Assuming the salt length is 32 bytes
+    }
+
+    #[test]
+    fn test_from_vec() {
+        let password = b"password".to_vec();
+        let key_length = 32;
+        let derived_key = DerivedKey::from_vec(password, None, key_length).unwrap();
+        assert_eq!(derived_key.key.len(), key_length as usize);
+        assert_eq!(derived_key.salt.len(), 32); // Assuming the salt length is 32 bytes
+    }
+
+    #[test]
+    fn test_restore() {
+        let password = "password";
+        let key_length = 32;
+        let mut derived_key = DerivedKey::new(password, None, key_length).unwrap();
+        let original_key = derived_key.key.clone();
+        derived_key.restore(password, key_length).unwrap();
+        assert_eq!(derived_key.key, original_key);
+    }
+
+    #[test]
+    fn test_multiple_derivation_with_same_password_and_salt_match() {
+        let password = "password";
+        let key_length = 32;
+        let salt = [0u8; 32];
+
+        let derived_key_1 = DerivedKey::new(password, Some(&salt), key_length).unwrap();
+        let derived_key_2 = DerivedKey::new(password, Some(&salt), key_length).unwrap();
+
+        assert_eq!(derived_key_1.key, derived_key_2.key);
+        assert_eq!(derived_key_1.salt, derived_key_2.salt);
     }
 }

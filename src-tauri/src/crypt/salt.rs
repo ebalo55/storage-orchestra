@@ -52,3 +52,34 @@ pub fn make_salt_with_length_if_missing(salt: Option<&[u8]>, length: usize) -> V
 
     salt
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_make_salt_if_missing() {
+        let salt = make_salt_if_missing(None);
+        assert_eq!(salt.len(), 32);
+    }
+
+    #[test]
+    fn test_make_salt_if_missing_with_salt() {
+        let salt = make_salt_if_missing(Some(&[0u8; 32]));
+        assert_eq!(salt.len(), 32);
+        assert_eq!(salt, vec![0u8; 32]);
+    }
+
+    #[test]
+    fn test_make_salt_with_length_if_missing() {
+        let salt = make_salt_with_length_if_missing(None, 24);
+        assert_eq!(salt.len(), 24);
+    }
+
+    #[test]
+    fn test_make_salt_with_length_if_missing_with_salt() {
+        let salt = make_salt_with_length_if_missing(Some(&[0u8; 16]), 16);
+        assert_eq!(salt.len(), 16);
+        assert_eq!(salt, vec![0u8; 16]);
+    }
+}

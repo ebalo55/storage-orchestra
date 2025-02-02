@@ -21,7 +21,7 @@ pub fn hash(data: &[u8], salt: Option<&[u8]>) -> String {
 
     let data = [hash, salt].concat();
 
-    format!("{}", encode(&data))
+    encode(&data)
 }
 
 /// Verifies a hash.
@@ -45,4 +45,23 @@ pub fn verify(data: &[u8], hash: &str) -> bool {
     let hash2 = hasher.finalize().to_vec();
 
     hash == hash2
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hash() {
+        let data = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let hash = hash(data.as_slice(), None);
+        assert_eq!(hash.len(), 128);
+    }
+
+    #[test]
+    fn test_verify() {
+        let data = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let hash = hash(data.as_slice(), None);
+        assert!(verify(data.as_slice(), &hash));
+    }
 }
