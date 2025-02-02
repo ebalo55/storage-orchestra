@@ -11,6 +11,10 @@ use tauri::{AppHandle, Manager, State, command};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
+/// The password for the application secure storage.
+///
+/// This is currently stored in plain text in memory.
+/// TODO: Implement a secret manager to store the password securely while the application is running.
 pub static PASSWORD: OnceCell<String> = OnceCell::new();
 
 /// Sets the password for the application secure storage.
@@ -83,6 +87,27 @@ pub async fn init_state(
 #[specta]
 pub async fn is_authenticated() -> bool {
     PASSWORD.get().is_some()
+}
+
+/// Gets the password for the application secure storage if already loaded in memory.
+///
+/// # Why
+///
+/// This function is useful when the frontend needs to initialize the State class or some other
+/// singleton but the password was not provided at application startup.
+/// This is most commonly a development issue (commonly derived from hot-reloading) but implementing
+/// a safe reboot of singleton in case the password is missing can be useful to improve the user
+/// experience.
+///
+/// **Note**: This function DOES NOT expose the password to other applications or the networks.
+///
+/// # Returns
+///
+/// The password.
+#[command]
+#[specta]
+pub async fn get_password() -> Result<String, String> {
+    PASSWORD.get().cloned().ok_or("Password not set".to_owned())
 }
 
 /// Gets data from the state.
