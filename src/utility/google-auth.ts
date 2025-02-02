@@ -129,7 +129,7 @@ class GoogleOAuth {
                 "Content-Type": "application/x-www-form-urlencoded",
             },
             body:    querystring.stringify({
-                refresh_token,
+                refresh_token: refresh_token.data,
                 client_id:     "243418232258-pi0e0sa9g3ol72c212hg7k496g51k765.apps.googleusercontent.com",
                 client_secret: "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",
                 grant_type:    "refresh_token",
@@ -162,11 +162,29 @@ class GoogleOAuth {
             const index = this._providers.findIndex((provider) => provider.owner === owner);
             this._providers[index] = new_data;
 
-            const storage = await State.init("");
-            await storage.insert({providers: this._providers});
+            await this.replaceAllGoogleProviders();
+
+            return new_data;
         }
         else {
             console.error("Error refreshing OAuth token:", response.statusText);
+        }
+    }
+
+    /**
+     * Replace all Google providers with the current providers
+     * @returns {Promise<void>}
+     * @private
+     */
+    private async replaceAllGoogleProviders() {
+        // get all providers
+        const storage = await State.init("");
+        const all_providers = await storage.get("providers");
+
+        if ("providers" in all_providers) {
+            // Remove all non-google providers and add the new providers
+            const non_google_providers = all_providers.providers.filter((provider) => provider.provider !== "google");
+            await storage.insert({providers: [...non_google_providers, ...this._providers]});
         }
     }
 
@@ -243,8 +261,7 @@ class GoogleOAuth {
             // Add new record
             this._providers.push(data);
 
-            const storage = await State.init("");
-            await storage.insert({providers: this._providers});
+            await this.replaceAllGoogleProviders();
         }
         else {
             console.error("Error fetching OAuth token:", response.statusText);
