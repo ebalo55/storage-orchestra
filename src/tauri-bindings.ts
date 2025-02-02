@@ -103,7 +103,37 @@ async isAuthenticated() : Promise<boolean> {
     return await TAURI_INVOKE("is_authenticated");
 },
 /**
- * Get the raw data as a string
+ * Gets the password for the application secure storage if already loaded in memory.
+ *
+ * # Why
+ *
+ * This function is useful when the frontend needs to initialize the State class or some other
+ * singleton but the password was not provided at application startup.
+ * This is most commonly a development issue (commonly derived from hot-reloading) but implementing
+ * a safe reboot of singleton in case the password is missing can be useful to improve the user
+ * experience.
+ *
+ * **Note**: This function DOES NOT expose the password to other applications or the networks.
+ *
+ * # Returns
+ *
+ * The password.
+ */
+async getPassword(): Promise<Result<string, string>> {
+	try {
+		return {status: "ok", data: await TAURI_INVOKE("get_password")};
+	}
+	catch (e) {
+		if (e instanceof Error) {
+			throw e;
+		}
+		else {
+			return {status: "error", error: e as any};
+		}
+	}
+},
+	/**
+	 * Get the raw data as a string
  * 
  * # Arguments
  * 
