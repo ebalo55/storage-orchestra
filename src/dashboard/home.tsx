@@ -10,31 +10,18 @@ import {
     Text,
     Tooltip,
 } from "@mantine/core";
-import {fetch} from "@tauri-apps/plugin-http";
+import { fetch } from "@tauri-apps/plugin-http";
 import querystring from "query-string";
-import {
-    all,
-    unique,
-} from "radash";
-import {
-    Dispatch,
-    FC,
-    SetStateAction,
-    useEffect,
-    useState,
-} from "react";
-import {Link} from "react-router";
-import {PageHeader} from "../components/page-header.tsx";
-import {ProviderIcon} from "../components/provider-icon.tsx";
-import {useProviders} from "../hooks/use-providers.ts";
-import {
-    commands,
-    ProviderData,
-    StorageProvider,
-} from "../tauri-bindings.ts";
-import {dayjs} from "../utility/dayjs.ts";
-import {formatByteSize} from "../utility/format-bytesize.ts";
-import {GoogleOAuth} from "../utility/google-auth.ts";
+import { all, unique } from "radash";
+import { Dispatch, FC, SetStateAction, useEffect, useState } from "react";
+import { Link } from "react-router";
+import { PageHeader } from "../components/page-header.tsx";
+import { ProviderIcon } from "../components/provider-icon.tsx";
+import { useProviders } from "../hooks/use-providers.ts";
+import { commands, ProviderData, StorageProvider } from "../tauri-bindings.ts";
+import { dayjs } from "../utility/dayjs.ts";
+import { formatByteSize } from "../utility/format-bytesize.ts";
+import { GoogleOAuth } from "../utility/google-auth.ts";
 
 interface ProviderStats {
     /**
@@ -137,7 +124,7 @@ async function fetchGoogleStats(provider: ProviderData): Promise<ProviderStats |
         fields: "storageQuota",
     }), {
         headers: {
-            Authorization: `Bearer ${access_token.data}`,
+            Authorization: `Bearer ${ access_token.data }`,
         },
     });
 
@@ -220,7 +207,7 @@ function fetchAllStats(
     setLoading(true);
     all(providers.map((v) => fetchStats(v).then((p) => setStats((prev) => {
         if (p) {
-            return unique([...prev, p], (i) => `${i.provider}-${i.owner}`);
+            return unique([ ...prev, p ], (i) => `${ i.provider }-${ i.owner }`);
         }
         return prev;
     })))).then(() => {
@@ -232,59 +219,92 @@ function fetchAllStats(
 const StatCard: FC<{
     stat: ProviderStats
 }> = ({stat}) => (
-    <Card withBorder shadow={"md"}>
+    <Card withBorder shadow={ "md" }>
         <Stack>
             <Group>
-                <ProviderIcon provider={stat.provider}/>
-                <Text size={"sm"}>
-                    {stat.owner}
+                <ProviderIcon provider={ stat.provider }/>
+                <Text size={ "sm" }>
+                    { stat.owner }
                 </Text>
-                <Button size={"xs"}
-                        variant={"light"}
-                        ml={"auto"}
-                        component={Link}
-                        to={`/dashboard/drives/${stat.provider}/${stat.owner}`}>
+                <Button size={ "xs" }
+                        variant={ "light" }
+                        ml={ "auto" }
+                        component={ Link }
+                        to={ `/dashboard/drives/${ stat.provider }/${ stat.owner }` }>
                     Open
                 </Button>
             </Group>
-            <Stack gap={5}>
-                <ProgressRoot size={"xl"}>
-                    <Tooltip label={`In use - ${stat.textual.used.documents}`}
+            <Stack gap={ 5 }>
+                <ProgressRoot size={ "xl" }>
+                    <Tooltip label={ `In use - ${ stat.textual.used.documents }` }
                              withArrow
-                             arrowSize={8}
-                             arrowRadius={4}>
-                        <ProgressSection value={stat.quotas.documents}
-                                         color={"blue.4"}>
+                             arrowSize={ 8 }
+                             arrowRadius={ 4 }>
+                        <ProgressSection value={ stat.quotas.documents }
+                                         color={ "blue.4" }
+                                         darkHidden>
                             <ProgressLabel>
-                                In use - {stat.quotas.documents}%
+                                In use - { stat.quotas.documents }%
+                            </ProgressLabel>
+                        </ProgressSection>
+                    </Tooltip>
+                    <Tooltip label={ `In use - ${ stat.textual.used.documents }` }
+                             withArrow
+                             arrowSize={ 8 }
+                             arrowRadius={ 4 }>
+                        <ProgressSection value={ stat.quotas.documents }
+                                         color={ "blue.9" }
+                                         lightHidden>
+                            <ProgressLabel>
+                                In use - { stat.quotas.documents }%
                             </ProgressLabel>
                         </ProgressSection>
                     </Tooltip>
 
-                    <Tooltip label={`Other - ${stat.textual.used.other}`}
+                    <Tooltip label={ `Other - ${ stat.textual.used.other }` }
                              withArrow
-                             arrowSize={8}
-                             arrowRadius={4}>
-                        <ProgressSection value={stat.quotas.others} color={"orange.4"}>
+                             arrowSize={ 8 }
+                             arrowRadius={ 4 }>
+                        <ProgressSection value={ stat.quotas.others } color={ "orange.4" } darkHidden>
                             <ProgressLabel>
-                                Other - {stat.quotas.others}%
+                                Other - { stat.quotas.others }%
+                            </ProgressLabel>
+                        </ProgressSection>
+                    </Tooltip>
+                    <Tooltip label={ `Other - ${ stat.textual.used.other }` }
+                             withArrow
+                             arrowSize={ 8 }
+                             arrowRadius={ 4 }>
+                        <ProgressSection value={ stat.quotas.others } color={ "orange.9" } lightHidden>
+                            <ProgressLabel>
+                                Other - { stat.quotas.others }%
                             </ProgressLabel>
                         </ProgressSection>
                     </Tooltip>
 
-                    <Tooltip label={`Free - ${stat.textual.free}`}
+                    <Tooltip label={ `Free - ${ stat.textual.free }` }
                              withArrow
-                             arrowSize={8}
-                             arrowRadius={4}>
-                        <ProgressSection value={stat.quotas.free} color={"gray.2"}>
-                            <ProgressLabel c={"dark"}>
-                                Free - {stat.quotas.free}%
+                             arrowSize={ 8 }
+                             arrowRadius={ 4 }>
+                        <ProgressSection value={ stat.quotas.free } color={ "gray.2" } darkHidden>
+                            <ProgressLabel c={ "dark" }>
+                                Free - { stat.quotas.free }%
+                            </ProgressLabel>
+                        </ProgressSection>
+                    </Tooltip>
+                    <Tooltip label={ `Free - ${ stat.textual.free }` }
+                             withArrow
+                             arrowSize={ 8 }
+                             arrowRadius={ 4 }>
+                        <ProgressSection value={ stat.quotas.free } color={ "dark.4" } lightHidden>
+                            <ProgressLabel c={ "gray.4" }>
+                                Free - { stat.quotas.free }%
                             </ProgressLabel>
                         </ProgressSection>
                     </Tooltip>
                 </ProgressRoot>
-                <Text size={"xs"} className={"font-semibold tabular-nums"} ml={"auto"}>
-                    {stat.textual.available}
+                <Text size={ "xs" } className={ "font-semibold tabular-nums" } ml={ "auto" }>
+                    { stat.textual.available }
                 </Text>
             </Stack>
         </Stack>
@@ -293,16 +313,16 @@ const StatCard: FC<{
 
 export default function Home() {
     const providers = useProviders();
-    const [stats, setStats] = useState<ProviderStats[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
+    const [ stats, setStats ] = useState<ProviderStats[]>([]);
+    const [ loading, setLoading ] = useState<boolean>(true);
 
     useEffect(() => {
         fetchAllStats(providers, setStats, setLoading);
-    }, [providers]);
+    }, [ providers ]);
 
     return (
-        <div className={"p-8"}>
-            <PageHeader title={"Dashboard"}>
+        <div className={ "p-8" }>
+            <PageHeader title={ "Dashboard" }>
                 <Text>
                     The dashboard is the place where you can see the status of all your connected cloud storage
                     providers with their respective usage statistics.
@@ -315,29 +335,29 @@ export default function Home() {
             <Stack>
                 {
                     stats.length === 0 && !loading && (
-                        <Stack align={"center"} justify={"center"}>
-                            <Text size={"sm"} fw={600} className={"text-center"}>
-                                No storage providers connected.<br/>
-                                Please connect a storage provider to see the statistics.
-                            </Text>
-                            <Button component={Link} to={"/dashboard/settings?page=providers"} variant={"light"}>
-                                Connect a storage provider
-                            </Button>
-                        </Stack>
-                    )
+                                     <Stack align={ "center" } justify={ "center" }>
+                                         <Text size={ "sm" } fw={ 600 } className={ "text-center" }>
+                                             No storage providers connected.<br/>
+                                             Please connect a storage provider to see the statistics.
+                                         </Text>
+                                         <Button component={ Link } to={ "/dashboard/settings?page=providers" } variant={ "light" }>
+                                             Connect a storage provider
+                                         </Button>
+                                     </Stack>
+                                 )
                 }
                 {
                     loading && (
-                        <Stack align={"center"} justify={"center"}>
-                            <Text>
-                                Loading storage statistics...
-                            </Text>
-                            <Loader/>
-                        </Stack>
-                    )
+                                <Stack align={ "center" } justify={ "center" }>
+                                    <Text>
+                                        Loading storage statistics...
+                                    </Text>
+                                    <Loader/>
+                                </Stack>
+                            )
                 }
                 {
-                    stats.map((stat) => <StatCard stat={stat}/>)
+                    stats.map((stat) => <StatCard stat={ stat }/>)
                 }
             </Stack>
         </div>
