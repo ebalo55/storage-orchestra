@@ -120,20 +120,69 @@ async isAuthenticated() : Promise<boolean> {
  * The password.
  */
 async getPassword(): Promise<Result<string, string>> {
-	try {
-		return {status: "ok", data: await TAURI_INVOKE("get_password")};
-	}
-	catch (e) {
-		if (e instanceof Error) {
-			throw e;
-		}
-		else {
-			return {status: "error", error: e as any};
-		}
-	}
+    try {
+        return {status: "ok", data: await TAURI_INVOKE("get_password")};
+    }
+    catch (e) {
+        if (e instanceof Error) {
+            throw e;
+        }
+        else {
+            return {status: "error", error: e as any};
+        }
+    }
 },
-	/**
-	 * Get the raw data as a string
+    /**
+     * Gets the settings of the application.
+     *
+     * # Arguments
+     *
+     * * `state` - The state to get the settings from.
+     *
+     * # Returns
+     *
+     * The settings of the application.
+     */
+    async loadSettings(): Promise<Result<Settings, string>> {
+        try {
+            return {status: "ok", data: await TAURI_INVOKE("load_settings")};
+        }
+        catch (e) {
+            if (e instanceof Error) {
+                throw e;
+            }
+            else {
+                return {status: "error", error: e as any};
+            }
+        }
+    },
+    /**
+     * Updates the settings of the application.
+     *
+     * # Arguments
+     *
+     * * `state` - The state to update the settings in.
+     * * `value` - The settings to update.
+     *
+     * # Returns
+     *
+     * Nothing.
+     */
+    async updateSettings(value: SettingsResult): Promise<Result<null, string>> {
+        try {
+            return {status: "ok", data: await TAURI_INVOKE("update_settings", {value})};
+        }
+        catch (e) {
+            if (e instanceof Error) {
+                throw e;
+            }
+            else {
+                return {status: "error", error: e as any};
+            }
+        }
+    },
+    /**
+     * Get the raw data as a string
  * 
  * # Arguments
  * 
@@ -212,7 +261,7 @@ export const STATE_FILE = "state.json" as const;
 
 /** user-defined types **/
 
-export type AppStateInnerKeys = "debounced_saver" | "password" | "providers"
+export type AppStateInnerKeys = "debounced_saver" | "password" | "providers" | "settings"
 export type AppStateInnerResult = 
 /**
  * The password to access the secure storage
@@ -221,7 +270,15 @@ export type AppStateInnerResult =
 /**
  * The list of providers
  */
-{ providers: ProviderData[] }
+{
+    providers: ProviderData[]
+} |
+/**
+ * The settings of the application
+ */
+{
+    settings: Settings
+}
 /**
  * Represent some data that have been managed cryptographically
  */
@@ -242,6 +299,44 @@ mode: number;
  * The salt applied when deriving the encryption key
  */
 salt: number[] | null }
+export type DefaultPageGeneralGroup =
+/**
+ * The dashboard page
+ */
+    "dashboard" |
+    /**
+     * The all my drives page
+     */
+    "all_my_drives" |
+    /**
+     * The settings page
+     */
+    "settings"
+/**
+ * The default page groups
+ */
+export type DefaultPageGroups =
+/**
+ * The general default page
+ */
+    {
+        general: DefaultPageGeneralGroup
+    } |
+    /**
+     * The provider default page
+     */
+    {
+        providers: ProviderPage
+    }
+/**
+ * The general behaviour settings
+ */
+export type GeneralBehaviour = {
+    /**
+     * The default page
+     */
+    default_page: DefaultPageGroups
+}
 /**
  * The data of a storage provider
  */
@@ -266,13 +361,66 @@ owner: string;
  * The provider of the token
  */
 provider: StorageProvider }
+/**
+ * A provider page
+ */
+export type ProviderPage = {
+    /**
+     * The storage provider
+     */
+    provider: StorageProvider;
+    /**
+     * The owner of the provider
+     */
+    owner: string
+}
+/**
+ * The settings of the application
+ */
+export type Settings = {
+    /**
+     * The theme settings
+     */
+    theme: ThemeSettings;
+    /**
+     * The general behaviour settings
+     */
+    general_behaviour: GeneralBehaviour
+}
+export type SettingsResult =
+/**
+ * The theme settings
+ */
+    {
+        theme: ThemeSettings
+    } |
+    /**
+     * The general behaviour settings
+     */
+    {
+        general_behaviour: GeneralBehaviour
+    }
 export type StorageProvider = "unrecognized" | "google" | "dropbox" | "onedrive" | "terabox"
+export type Theme = "light" | "dark" | "system"
+/**
+ * The theme settings
+ */
+export type ThemeSettings = {
+    /**
+     * The application primary color
+     */
+    font_size: number;
+    /**
+     * The application theme
+     */
+    theme: Theme
+}
 
 /** tauri-specta globals **/
 
-import {invoke as TAURI_INVOKE} from "@tauri-apps/api/core";
+import { invoke as TAURI_INVOKE } from "@tauri-apps/api/core";
 import * as TAURI_API_EVENT from "@tauri-apps/api/event";
-import {type WebviewWindow as __WebviewWindow__} from "@tauri-apps/api/webviewWindow";
+import { type WebviewWindow as __WebviewWindow__ } from "@tauri-apps/api/webviewWindow";
 
 type __EventObj__<T> = {
 	listen: (

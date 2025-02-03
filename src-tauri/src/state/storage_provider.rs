@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Type, Eq, PartialEq)]
 pub enum StorageProvider {
     #[serde(rename = "unrecognized")]
     #[default]

@@ -72,7 +72,7 @@ impl<'ext_de> Deserialize<'ext_de> for CryptData {
         D: Deserializer<'ext_de>,
     {
         #[derive(Deserialize)]
-        #[serde(field_identifier, rename_all = "lowercase")]
+        #[serde(field_identifier, rename_all = "snake_case")]
         enum Field {
             Data,
             Mode,

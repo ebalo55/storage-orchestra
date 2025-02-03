@@ -1,34 +1,26 @@
 import "@mantine/core/styles.css";
 import "./assets/tailwind.css";
-import {
-    createTheme,
-    localStorageColorSchemeManager,
-    MantineProvider,
-} from "@mantine/core";
-import {
-    BaseDirectory,
-    exists,
-} from "@tauri-apps/plugin-fs";
-import {useEffect} from "react";
-import {
-    NavigateFunction,
-    Outlet,
-    useNavigate,
-} from "react-router";
-import {VAULT_NAME} from "./utility/state.ts";
+import { localStorageColorSchemeManager, MantineProvider } from "@mantine/core";
+import { BaseDirectory, exists } from "@tauri-apps/plugin-fs";
+import { useEffect } from "react";
+import { NavigateFunction, Outlet, useNavigate } from "react-router";
+import { useSimpleThemeContext } from "./hooks/use-theme.tsx";
+import { VAULT_NAME } from "./utility/state.ts";
 
-const theme = createTheme({}),
-    colorSchemeManager = localStorageColorSchemeManager({
-        key: "color-scheme",
-    });
+const colorSchemeManager = localStorageColorSchemeManager({
+    key: "color-scheme",
+});
+
 export default function Layout() {
     const navigate = useNavigate();
     useEffect(() => {
         shouldOnboard(navigate);
     }, []);
 
+    const {theme} = useSimpleThemeContext();
+
     return (
-        <MantineProvider theme={theme} colorSchemeManager={colorSchemeManager} defaultColorScheme={"light"}>
+        <MantineProvider theme={ theme } colorSchemeManager={ colorSchemeManager } defaultColorScheme={ "light" }>
             <Outlet/>
         </MantineProvider>
     );

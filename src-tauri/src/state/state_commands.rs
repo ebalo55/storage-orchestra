@@ -1,5 +1,6 @@
 use crate::crypt;
 use crate::crypt::{CryptData, CryptDataMode};
+use crate::state::settings::{Settings, SettingsResult};
 use crate::state::state::{
     AppState, AppStateInner, AppStateInnerKeys, AppStateInnerResult, STATE_FILE,
 };
@@ -7,7 +8,7 @@ use once_cell::sync::OnceCell;
 use specta::specta;
 use std::path::PathBuf;
 use tauri::path::BaseDirectory;
-use tauri::{AppHandle, Manager, State, command};
+use tauri::{command, AppHandle, Manager, State};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
@@ -110,6 +111,57 @@ pub async fn get_password() -> Result<String, String> {
     PASSWORD.get().cloned().ok_or("Password not set".to_owned())
 }
 
+/// Gets the settings of the application.
+///
+/// # Arguments
+///
+/// * `state` - The state to get the settings from.
+///
+/// # Returns
+///
+/// The settings of the application.
+#[command]
+#[specta]
+pub async fn load_settings(state: State<'_, AppState>) -> Result<Settings, String> {
+    get_from_state(state, AppStateInnerKeys::Settings)
+        .await
+        .map(|res| match res {
+            AppStateInnerResult::settings(settings) => settings,
+            _ => unreachable!(),
+        })
+}
+
+/// Updates the settings of the application.
+///
+/// # Arguments
+///
+/// * `state` - The state to update the settings in.
+/// * `value` - The settings to update.
+///
+/// # Returns
+///
+/// Nothing.
+#[command]
+#[specta]
+pub async fn update_settings(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    value: SettingsResult,
+) -> Result<(), String> {
+    let mut settings = load_settings(state.clone()).await?;
+
+    match value {
+        SettingsResult::theme(data) => {
+            settings.theme = data;
+        }
+        SettingsResult::general_behaviour(data) => {
+            settings.general_behaviour = data;
+        }
+    }
+
+    insert_in_state(app, state, AppStateInnerResult::settings(settings)).await
+}
+
 /// Gets data from the state.
 ///
 /// # Arguments
@@ -133,6 +185,9 @@ pub async fn get_from_state(
         AppStateInnerKeys::DebouncedSaver => Err("Cannot get data from debounced saver".to_owned()),
         AppStateInnerKeys::Providers => Ok(AppStateInnerResult::providers(
             readable_state.providers.clone(),
+        )),
+        AppStateInnerKeys::Settings => Ok(AppStateInnerResult::settings(
+            readable_state.settings.clone(),
         )),
     }
 }
@@ -165,6 +220,9 @@ pub async fn remove_from_state(
         AppStateInnerKeys::Providers => {
             writable_state.providers = Vec::new();
         }
+        AppStateInnerKeys::Settings => {
+            writable_state.settings = Settings::default();
+        }
     }
 
     drop(writable_state);
@@ -196,6 +254,11 @@ pub async fn insert_in_state(
         AppStateInnerResult::providers(data) => {
             let mut writable_state = state.write().await;
             writable_state.providers = data;
+            drop(writable_state);
+        }
+        AppStateInnerResult::settings(data) => {
+            let mut writable_state = state.write().await;
+            writable_state.settings = data;
             drop(writable_state);
         }
     }

@@ -6,6 +6,7 @@ use key_as_enum::KeysAsEnum;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::async_runtime::RwLock;
+use crate::state::settings::Settings;
 
 pub static STATE_FILE: &str = "state.json";
 
@@ -19,6 +20,8 @@ pub struct AppStateInner {
     pub password: CryptData,
     /// The list of providers
     pub providers: Vec<ProviderData>,
+    /// The settings of the application
+    pub settings: Settings,
 }
 
 pub type AppState = RwLock<AppStateInner>;
