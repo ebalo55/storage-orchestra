@@ -4,7 +4,7 @@ import { yupResolver } from "mantine-form-yup-resolver";
 import { useEffect } from "react";
 import { NavigateFunction, useNavigate } from "react-router";
 import * as yup from "yup";
-import { ThemeContextType, useThemeContext } from "./hooks/use-theme.tsx";
+import { ExtendedThemeContextType, useThemeContext } from "./hooks/use-theme.tsx";
 import { commands } from "./tauri-bindings.ts";
 import { computeDefaultPage } from "./utility/compute-default-page.ts";
 import { ensureIsAuthenticated } from "./utility/ensure-is-autenticated.ts";
@@ -17,7 +17,12 @@ type LoginValues = {
 
 type LoginForm = UseFormReturnType<LoginValues, (values: LoginValues) => LoginValues>;
 
-async function login(values: LoginValues, form: LoginForm, navigate: NavigateFunction, theme_ctx: ThemeContextType) {
+async function login(
+    values: LoginValues,
+    form: LoginForm,
+    navigate: NavigateFunction,
+    theme_ctx: ExtendedThemeContextType,
+) {
     try {
         await State.init(values.password);
         const settings = await commands.loadSettings();
