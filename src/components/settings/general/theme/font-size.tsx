@@ -1,5 +1,5 @@
 import { NumberInput, Skeleton } from "@mantine/core";
-import { FC } from "react";
+import { FC, useRef } from "react";
 import { ThemeContextType, useThemeContext } from "../../../../hooks/use-theme.tsx";
 import { Settings, SettingsResult } from "../../../../tauri-bindings.ts";
 import { SettingRow } from "../../setting-row.tsx";
@@ -59,9 +59,12 @@ async function handleOnChange(
 
 export const FontSize: FC<FontSizeProps> = ({settings, updateSettings, refreshSettings}) => {
     const theme_ctx = useThemeContext();
+    const ref = useRef(null);
+
     return (
         <SettingRow title={ "Font size" }
-                    description={ "Change the font size of the application" }>
+                    description={ "Change the font size of the application" }
+                    target={ ref }>
             {
                 !settings && <Skeleton height={ 40 }
                                        animate
@@ -71,7 +74,8 @@ export const FontSize: FC<FontSizeProps> = ({settings, updateSettings, refreshSe
             {
                 settings && (
                              <NumberInput
-                                 placeholder="Font size"
+                                 ref={ ref }
+                                 placeholder={ "Font size" }
                                  ml={ "auto" }
                                  maw={ "10rem" }
                                  min={ 10 }

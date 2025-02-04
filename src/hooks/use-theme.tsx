@@ -42,6 +42,7 @@ export const ThemeProvider = ({children}: {
 }) => {
     const [ theme, setTheme ] = useState<MantineThemeOverride>(createTheme({
         fontFamily: "Nunito, sans-serif",
+        cursorType: "pointer",
     }));
 
     return (

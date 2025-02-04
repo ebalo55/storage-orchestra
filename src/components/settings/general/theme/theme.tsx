@@ -1,5 +1,5 @@
 import { Select, Skeleton } from "@mantine/core";
-import { FC } from "react";
+import { FC, useRef } from "react";
 import { ExtendedThemeContextType, useThemeContext } from "../../../../hooks/use-theme.tsx";
 import { Settings, SettingsResult, Theme as ITheme } from "../../../../tauri-bindings.ts";
 import { themeToMantineColorScheme } from "../../../../utility/load-theme.ts";
@@ -52,9 +52,12 @@ async function handleOnChange(
 
 export const Theme: FC<ThemeProps> = ({settings, updateSettings, refreshSettings}) => {
     const theme_ctx = useThemeContext();
+    const ref = useRef(null);
+
     return (
         <SettingRow title={ "Theme" }
-                    description={ "The theme to use in the application." }>
+                    description={ "The theme to use in the application." }
+                    target={ ref }>
             {
                 !settings && <Skeleton height={ 40 }
                                        animate
@@ -64,7 +67,8 @@ export const Theme: FC<ThemeProps> = ({settings, updateSettings, refreshSettings
             {
                 settings && (
                              <Select
-                                 placeholder="Theme"
+                                 ref={ ref }
+                                 placeholder={ "Theme" }
                                  data={ [
                                      {label: "Light", value: "light" as ITheme},
                                      {label: "Dark", value: "dark" as ITheme},

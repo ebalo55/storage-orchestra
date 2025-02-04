@@ -571,9 +571,9 @@ export type TwoFactorAuthentication = {
 
 /** tauri-specta globals **/
 
-import {invoke as TAURI_INVOKE} from "@tauri-apps/api/core";
+import { invoke as TAURI_INVOKE } from "@tauri-apps/api/core";
 import * as TAURI_API_EVENT from "@tauri-apps/api/event";
-import {type WebviewWindow as __WebviewWindow__} from "@tauri-apps/api/webviewWindow";
+import { type WebviewWindow as __WebviewWindow__ } from "@tauri-apps/api/webviewWindow";
 
 type __EventObj__<T> = {
     listen: (
@@ -613,7 +613,7 @@ function __makeEvents__<T extends Record<string, any>>(
                 return new Proxy((
                     () => {}
                 ) as any, {
-                    apply: (_, __, [window]: [__WebviewWindow__]) => (
+                    apply: (_, __, [ window ]: [ __WebviewWindow__ ]) => (
                         {
                             listen: (arg: any) => window.listen(name, arg),
                             once:   (arg: any) => window.once(name, arg),

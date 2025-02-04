@@ -1,15 +1,16 @@
 import { Group, Stack, Text } from "@mantine/core";
-import { FC, ReactNode } from "react";
+import { FC, MutableRefObject, ReactNode } from "react";
 
 interface SettingRowProps {
     children: ReactNode;
     title: ReactNode;
     description: ReactNode;
+    target: MutableRefObject<any>;
 }
 
-export const SettingRow: FC<SettingRowProps> = ({children, description, title}) => (
+export const SettingRow: FC<SettingRowProps> = ({children, description, title, target}) => (
     <Group grow>
-        <Stack gap={ 0 }>
+        <Stack gap={ 0 } onClick={ () => target.current.focus() } className={ "cursor-pointer" }>
             <Text fw={ 600 }>
                 { title }
             </Text>

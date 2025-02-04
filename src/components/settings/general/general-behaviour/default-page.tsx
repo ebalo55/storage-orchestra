@@ -1,6 +1,6 @@
 import { ComboboxData, Select, Skeleton } from "@mantine/core";
 import { title } from "radash";
-import { FC, useMemo } from "react";
+import { FC, useMemo, useRef } from "react";
 import { useProviders } from "../../../../hooks/use-providers.ts";
 import {
     DefaultPageGeneralGroup,
@@ -119,9 +119,12 @@ export const DefaultPage: FC<DefaultPageProps> = ({settings, updateSettings, ref
         ] as ComboboxData;
     }, [ providers ]);
 
+    const ref = useRef(null);
+
     return (
         <SettingRow title={ "Default page" }
-                    description={ "The page that you want to be redirected to when you log in" }>
+                    description={ "The page that you want to be redirected to when you log in" }
+                    target={ ref }>
             {
                 !settings && <Skeleton height={ 40 }
                                        animate
@@ -131,7 +134,8 @@ export const DefaultPage: FC<DefaultPageProps> = ({settings, updateSettings, ref
             {
                 settings && (
                              <Select
-                                 placeholder="Pick value"
+                                 ref={ ref }
+                                 placeholder={ "Default page" }
                                  data={ default_page_options }
                                  ml={ "auto" }
                                  maw={ "24rem" }
