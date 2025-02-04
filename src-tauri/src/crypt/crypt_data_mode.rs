@@ -1,9 +1,17 @@
 /// Define the working modes of the CryptData struct
 #[derive(Debug, PartialEq, Eq)]
 pub enum CryptDataMode {
+    /// Represent the hashing of data
     Hash = 0b001,
+    /// Represent the encoding of data
     Encode = 0b010,
+    /// Represent the encryption of data
     Encrypt = 0b100,
+    /// Marks the data as being a password hash, this is used to uniquely identify the password in the state
+    PasswordHash = 0b0001_0001,
+    /// Marks the data as being a signature hash, this is used to uniquely identify the signature in the state
+    SignatureHash = 0b0010_0001,
+    /// Marks the data as having been modified during serialization
     ModifiedDuringSerialization = 0b1000_0000,
 }
 
@@ -44,6 +52,12 @@ impl CryptDataMode {
         }
         if Self::has_been_modified_during_serialization(mode) {
             modes.push(CryptDataMode::ModifiedDuringSerialization);
+        }
+        if Self::is_password_hash(mode) {
+            modes.push(CryptDataMode::PasswordHash);
+        }
+        if Self::is_signature_hash(mode) {
+            modes.push(CryptDataMode::SignatureHash);
         }
 
         modes
@@ -154,6 +168,32 @@ impl CryptDataMode {
     /// Whether the data has been modified during serialization
     pub fn has_been_modified_during_serialization(mode: u8) -> bool {
         mode & CryptDataMode::ModifiedDuringSerialization as u8 != 0
+    }
+
+    /// Check if the data is a password hash
+    ///
+    /// # Arguments
+    ///
+    /// * `mode` - The working mode of the data
+    ///
+    /// # Returns
+    ///
+    /// Whether the data is a password hash
+    pub fn is_password_hash(mode: u8) -> bool {
+        mode & CryptDataMode::PasswordHash as u8 != 0
+    }
+
+    /// Check if the data is a signature hash
+    ///
+    /// # Arguments
+    ///
+    /// * `mode` - The working mode of the data
+    ///
+    /// # Returns
+    ///
+    /// Whether the data is a signature hash
+    pub fn is_signature_hash(mode: u8) -> bool {
+        mode & CryptDataMode::SignatureHash as u8 != 0
     }
 }
 

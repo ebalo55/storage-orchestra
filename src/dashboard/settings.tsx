@@ -1,16 +1,35 @@
-import { Card, Divider, Stack, Tabs, TabsList, TabsPanel, TabsTab, Text, Title } from "@mantine/core";
-import { IconServer, IconSettings, IconShield } from "@tabler/icons-react";
-import { useMemo } from "react";
-import { useSearchParams } from "react-router";
-import { PageHeader } from "../components/page-header.tsx";
-import { CompressFiles } from "../components/settings/general/general-behaviour/compress-files.tsx";
-import { DefaultPage } from "../components/settings/general/general-behaviour/default-page.tsx";
-import { DefaultToNativeApp } from "../components/settings/general/general-behaviour/default-to-native-app.tsx";
-import { DefaultToWebEditor } from "../components/settings/general/general-behaviour/default-to-web-editor.tsx";
-import { FontSize } from "../components/settings/general/theme/font-size.tsx";
-import { Theme } from "../components/settings/general/theme/theme.tsx";
-import { useSettings } from "../hooks/use-settings.ts";
-import { commands, SettingsResult } from "../tauri-bindings.ts";
+import {
+    Card,
+    Divider,
+    Stack,
+    Tabs,
+    TabsList,
+    TabsPanel,
+    TabsTab,
+    Text,
+    Title,
+} from "@mantine/core";
+import {
+    IconServer,
+    IconSettings,
+    IconShield,
+} from "@tabler/icons-react";
+import {useMemo} from "react";
+import {useSearchParams} from "react-router";
+import {PageHeader} from "../components/page-header.tsx";
+import {CompressFiles} from "../components/settings/general/general-behaviour/compress-files.tsx";
+import {DefaultPage} from "../components/settings/general/general-behaviour/default-page.tsx";
+import {DefaultToNativeApp} from "../components/settings/general/general-behaviour/default-to-native-app.tsx";
+import {DefaultToWebEditor} from "../components/settings/general/general-behaviour/default-to-web-editor.tsx";
+import {FontSize} from "../components/settings/general/theme/font-size.tsx";
+import {Theme} from "../components/settings/general/theme/theme.tsx";
+import {PasswordHint} from "../components/settings/security/passwords/password-hint.tsx";
+import {UpdatePassword} from "../components/settings/security/passwords/update-password.tsx";
+import {useSettings} from "../hooks/use-settings.ts";
+import {
+    commands,
+    SettingsResult,
+} from "../tauri-bindings.ts";
 
 /**
  * Save the updated settings to the backend and refresh the settings
@@ -115,7 +134,20 @@ export default function Settings() {
                 </TabsPanel>
 
                 <TabsPanel value="security" className={ "p-4" }>
-                    Security tab content
+                    <Card withBorder p={"xl"}>
+                        <Title order={4}>
+                            Password
+                        </Title>
+                        <Stack m={"lg"} gap={"xl"}>
+                            <PasswordHint settings={settings}
+                                          refreshSettings={refreshSettings}
+                                          updateSettings={updateSettings}/>
+                            <Divider/>
+                            <UpdatePassword settings={settings}
+                                            refreshSettings={refreshSettings}
+                                            updateSettings={updateSettings}/>
+                        </Stack>
+                    </Card>
                 </TabsPanel>
             </Tabs>
         </div>

@@ -356,7 +356,7 @@ async fn create_state_file(state_file: PathBuf, password: String) -> Result<(), 
     let state = AppStateInner {
         password: CryptData::new(
             password.as_str().as_bytes().to_vec(),
-            CryptDataMode::to_u8(vec![CryptDataMode::Hash]),
+            CryptDataMode::to_u8(vec![CryptDataMode::Hash, CryptDataMode::PasswordHash]),
             None,
         ),
         ..Default::default()

@@ -75,6 +75,7 @@ pub fn run() -> Result<(), String> {
             state::get_password,
             state::load_settings,
             state::update_settings,
+            state::check_password,
             crypt::crypt_data_get_raw_data_as_string,
             crypt::crypt_data_get_raw_data,
             crypt::make_crypt_data_from_qualified_string,

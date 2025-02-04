@@ -10,13 +10,13 @@ use tauri::State;
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Type)]
 pub struct ProviderData {
     /// The access token
-    access_token: CryptData,
+    pub access_token: CryptData,
     /// The refresh token
-    refresh_token: CryptData,
+    pub refresh_token: CryptData,
     /// The expiry date of the token (utc unix timestamp)
-    expiry: u64,
+    pub expiry: u64,
     /// The owner of the token (email)
-    owner: String,
+    pub owner: String,
     /// The provider of the token
-    provider: StorageProvider,
+    pub provider: StorageProvider,
 }

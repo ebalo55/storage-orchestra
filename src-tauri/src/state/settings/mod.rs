@@ -8,6 +8,7 @@ use specta::Type;
 
 pub mod general_behaviour;
 mod security;
+pub mod security_commands;
 pub mod theme;
 
 /// The settings of the application

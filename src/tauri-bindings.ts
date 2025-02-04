@@ -288,10 +288,11 @@ export const commands = {
                 return {status: "error", error: e as any};
             }
         }
-    },
-};
+    }
+}
 
 /** user-defined events **/
+
 
 
 /** user-defined constants **/
@@ -301,7 +302,7 @@ export const STATE_FILE = "state.json" as const;
 /** user-defined types **/
 
 export type AppStateInnerKeys = "debounced_saver" | "password" | "providers" | "settings"
-export type AppStateInnerResult =
+export type AppStateInnerResult = 
 /**
  * The password to access the secure storage
  */
@@ -341,7 +342,7 @@ export type CryptData = {
      */
     salt: number[] | null
 }
-export type DefaultPageGeneralGroup =
+export type DefaultPageGeneralGroup = 
 /**
  * The dashboard page
  */
@@ -357,7 +358,7 @@ export type DefaultPageGeneralGroup =
 /**
  * The default page groups
  */
-export type DefaultPageGroups =
+export type DefaultPageGroups = 
 /**
  * The general default page
  */
@@ -518,7 +519,7 @@ export type Settings = {
      */
     security: Security
 }
-export type SettingsResult =
+export type SettingsResult = 
 /**
  * The theme settings
  */
@@ -571,9 +572,9 @@ export type TwoFactorAuthentication = {
 
 /** tauri-specta globals **/
 
-import { invoke as TAURI_INVOKE } from "@tauri-apps/api/core";
+import {invoke as TAURI_INVOKE} from "@tauri-apps/api/core";
 import * as TAURI_API_EVENT from "@tauri-apps/api/event";
-import { type WebviewWindow as __WebviewWindow__ } from "@tauri-apps/api/webviewWindow";
+import {type WebviewWindow as __WebviewWindow__} from "@tauri-apps/api/webviewWindow";
 
 type __EventObj__<T> = {
     listen: (
@@ -610,16 +611,12 @@ function __makeEvents__<T extends Record<string, any>>(
             get: (_, event) => {
                 const name = mappings[event as keyof T];
 
-                return new Proxy((
-                    () => {}
-                ) as any, {
-                    apply: (_, __, [ window ]: [ __WebviewWindow__ ]) => (
-                        {
-                            listen: (arg: any) => window.listen(name, arg),
-                            once:   (arg: any) => window.once(name, arg),
-                            emit:   (arg: any) => window.emit(name, arg),
-                        }
-                    ),
+                return new Proxy((() => {}) as any, {
+                    apply: (_, __, [window]: [__WebviewWindow__]) => ({
+                        listen: (arg: any) => window.listen(name, arg),
+                        once:   (arg: any) => window.once(name, arg),
+                        emit:   (arg: any) => window.emit(name, arg),
+                    }),
                     get:   (_, command: keyof __EventObj__<any>) => {
                         switch (command) {
                             case "listen":

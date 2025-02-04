@@ -28,11 +28,17 @@ pub struct CryptData {
     mode: u8,
     /// The salt applied when deriving the encryption key
     salt: Option<Vec<u8>>,
+    /// The list of related keys in the parent struct, this is used to understand which values are
+    /// required to (re-)compute the hash
+    pub related_keys: Vec<String>,
 }
 
 impl PartialEq<Self> for CryptData {
     fn eq(&self, other: &Self) -> bool {
-        self.data == other.data && self.mode == other.mode && self.salt == other.salt
+        self.data == other.data
+            && self.mode == other.mode
+            && self.salt == other.salt
+            && self.related_keys == other.related_keys
     }
 }
 
@@ -42,7 +48,7 @@ impl Serialize for CryptData {
         S: Serializer,
     {
         let mut this = self.clone();
-        let mut state = serializer.serialize_struct("CryptData", 3)?;
+        let mut state = serializer.serialize_struct("CryptData", 4)?;
 
         // If the data is already encoded or hashed, serialize it as a string
         if CryptDataMode::should_encode(this.mode) || CryptDataMode::should_hash(this.mode) {
@@ -68,6 +74,9 @@ impl Serialize for CryptData {
         } else {
             state.serialize_field("salt", &None::<Vec<u8>>)?;
         }
+
+        state.serialize_field("related_keys", &this.related_keys)?;
+
         state.end()
     }
 }
@@ -83,6 +92,7 @@ impl<'ext_de> Deserialize<'ext_de> for CryptData {
             Data,
             Mode,
             Salt,
+            RelatedKeys,
         };
 
         struct CryptDataVisitor;
@@ -100,6 +110,7 @@ impl<'ext_de> Deserialize<'ext_de> for CryptData {
                 let mut data = None;
                 let mut mode = None;
                 let mut salt = None;
+                let mut related_keys = None;
 
                 while let Some(key) = map.next_key()? {
                     match key {
@@ -112,6 +123,9 @@ impl<'ext_de> Deserialize<'ext_de> for CryptData {
                         Field::Salt => {
                             salt = map.next_value::<Option<String>>()?;
                         }
+                        Field::RelatedKeys => {
+                            related_keys = Some(map.next_value::<Vec<String>>()?);
+                        }
                     }
                 }
 
@@ -123,13 +137,19 @@ impl<'ext_de> Deserialize<'ext_de> for CryptData {
                     return Err(serde::de::Error::missing_field("mode"));
                 }
 
+                if related_keys.is_none() {
+                    return Err(serde::de::Error::missing_field("related_keys"));
+                }
+
                 let data = data.unwrap();
                 let mode = mode.unwrap();
+                let related_keys = related_keys.unwrap();
 
                 let mut crypt_data = CryptData::default();
                 crypt_data.data = data.as_bytes().to_vec();
                 crypt_data.mode = mode;
                 crypt_data.raw_data = None;
+                crypt_data.related_keys = related_keys;
 
                 if salt.is_some() {
                     crypt_data.salt = Some(
@@ -141,7 +161,11 @@ impl<'ext_de> Deserialize<'ext_de> for CryptData {
             }
         }
 
-        deserializer.deserialize_struct("CryptData", &["mode", "data", "salt"], CryptDataVisitor)
+        deserializer.deserialize_struct(
+            "CryptData",
+            &["mode", "data", "salt", "related_keys"],
+            CryptDataVisitor,
+        )
     }
 }
 
@@ -158,6 +182,7 @@ impl Debug for CryptData {
         pending_output
             .field("mode", &self.mode)
             .field("salt", &self.salt)
+            .field("related_keys", &self.related_keys)
             .finish()
     }
 }
@@ -192,12 +217,18 @@ impl CryptData {
     /// # Returns
     ///
     /// The CryptData struct
-    pub fn new(raw_data: Vec<u8>, mode: u8, key: Option<&[u8]>) -> Self {
+    pub fn new(
+        raw_data: Vec<u8>,
+        mode: u8,
+        key: Option<&[u8]>,
+        related_keys: Option<Vec<String>>,
+    ) -> Self {
         let mut instance = Self {
             raw_data: Some(raw_data),
             data: Vec::new(),
             mode,
             salt: None,
+            related_keys: related_keys.unwrap_or_default(),
         };
 
         // Hash, encrypt, and encode the data if needed
@@ -453,7 +484,7 @@ pub async fn make_crypt_data_from_qualified_string(data: String) -> Result<Crypt
 
     let key = PASSWORD.get().ok_or("Password not set")?;
 
-    Ok(CryptData::new(data, mode, Some(key.as_bytes())))
+    Ok(CryptData::new(data, mode, Some(key.as_bytes()), None))
 }
 
 #[cfg(test)]
@@ -465,7 +496,7 @@ mod tests {
     fn test_new() {
         let data = vec![1, 2, 3];
         let mode = CryptDataMode::Encode as u8;
-        let crypt_data = CryptData::new(data.clone(), mode, None);
+        let crypt_data = CryptData::new(data.clone(), mode, None, None);
         assert_eq!(crypt_data.raw_data.unwrap(), data);
         assert!(!crypt_data.data.is_empty());
         assert_eq!(crypt_data.mode, mode);
@@ -473,7 +504,7 @@ mod tests {
 
     #[test]
     fn test_hash() {
-        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Hash as u8, None);
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Hash as u8, None, None);
         assert!(!data.data.is_empty());
         assert!(verify(
             vec![1, 2, 3].as_slice(),
@@ -483,7 +514,7 @@ mod tests {
 
     #[test]
     fn test_encode() {
-        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encode as u8, None);
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encode as u8, None, None);
         data.encode();
         assert!(!data.data.is_empty());
         assert_eq!("AQID", String::from_utf8_lossy(&data.data).to_string());
@@ -492,7 +523,7 @@ mod tests {
     #[test]
     fn test_encrypt() {
         let key = b"supersecretkey";
-        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encrypt as u8, Some(key));
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encrypt as u8, Some(key), None);
         assert!(!data.data.is_empty());
         assert!(data.salt.is_some());
     }
@@ -500,7 +531,7 @@ mod tests {
     #[test]
     fn test_decrypt() {
         let key = b"supersecretkey";
-        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encrypt as u8, Some(key));
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encrypt as u8, Some(key), None);
         data.decrypt(key).unwrap();
         assert_eq!(data.raw_data.unwrap(), vec![1, 2, 3]);
     }
@@ -508,7 +539,7 @@ mod tests {
     #[test]
     fn test_get_raw_data() {
         let key = b"supersecretkey";
-        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encrypt as u8, Some(key));
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encrypt as u8, Some(key), None);
         let raw_data = data.get_raw_data(Some(key)).unwrap();
         assert_eq!(raw_data, vec![1, 2, 3]);
     }
@@ -520,6 +551,7 @@ mod tests {
             b"test string".to_vec(),
             CryptDataMode::Encrypt as u8,
             Some(key),
+            None,
         );
         let raw_data_str = data.get_raw_data_as_string(Some(key)).unwrap();
         assert_eq!(raw_data_str, "test string");
@@ -532,6 +564,7 @@ mod tests {
             vec![1, 2, 3],
             CryptDataMode::to_u8(vec![CryptDataMode::Encode, CryptDataMode::Encrypt]),
             Some(key),
+            None,
         );
         let raw_data = data.get_raw_data(Some(key)).unwrap();
         assert_eq!(raw_data, vec![1, 2, 3]);
@@ -544,6 +577,7 @@ mod tests {
             b"test string".to_vec(),
             CryptDataMode::to_u8(vec![CryptDataMode::Encode, CryptDataMode::Encrypt]),
             Some(key),
+            None,
         );
         let raw_data_str = data.get_raw_data_as_string(Some(key)).unwrap();
         assert_eq!(raw_data_str, "test string");
@@ -556,6 +590,7 @@ mod tests {
             b"test string".to_vec(),
             CryptDataMode::to_u8(vec![CryptDataMode::Encode, CryptDataMode::Encrypt]),
             Some(key),
+            None,
         );
         let raw_data_str = data.get_raw_data_as_string(Some(key)).unwrap();
         assert_eq!(raw_data_str, "test string");
@@ -609,6 +644,7 @@ mod tests {
             b"test string".to_vec(),
             CryptDataMode::to_u8(vec![CryptDataMode::Encode, CryptDataMode::Encrypt]),
             Some(key),
+            None,
         );
         let serialized = serde_json::to_string(&data).unwrap();
         let mut deserialized = serde_json::from_str::<CryptData>(serialized.as_str()).unwrap();
