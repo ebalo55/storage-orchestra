@@ -1,14 +1,14 @@
-use std::fmt::Display;
+use as_result_enum::AsResultEnum;
 use educe::Educe;
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use as_result_enum::AsResultEnum;
+use std::fmt::Display;
 
 /// The theme settings
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, Educe)]
 #[educe(Default)]
 pub struct ThemeSettings {
-    /// The application primary color
+    /// The application font size in pixels
     #[educe(Default = 16)]
     pub font_size: u8,
     /// The application theme

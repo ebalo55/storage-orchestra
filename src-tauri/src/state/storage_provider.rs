@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Type, Eq, PartialEq)]
+/// The available storage providers
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Type, Eq, PartialEq, Hash)]
 pub enum StorageProvider {
     #[serde(rename = "unrecognized")]
     #[default]
@@ -25,7 +26,7 @@ impl TryFrom<&str> for StorageProvider {
             "dropbox" => Ok(Self::Dropbox),
             "onedrive" => Ok(Self::OneDrive),
             "terabox" => Ok(Self::Terabox),
-            _ => Err(format!("{} is not a valid provider", value))
+            _ => Err(format!("{} is not a valid provider", value)),
         }
     }
 }

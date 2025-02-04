@@ -18,7 +18,7 @@ use tauri::{State, command};
 use tracing::{debug, error};
 
 /// Represent some data that have been managed cryptographically
-#[derive(Clone, Default, Type)]
+#[derive(Clone, Default, Type, Eq)]
 pub struct CryptData {
     /// The cryptographically modified data
     data: Vec<u8>,
@@ -28,6 +28,12 @@ pub struct CryptData {
     mode: u8,
     /// The salt applied when deriving the encryption key
     salt: Option<Vec<u8>>,
+}
+
+impl PartialEq<Self> for CryptData {
+    fn eq(&self, other: &Self) -> bool {
+        self.data == other.data && self.mode == other.mode && self.salt == other.salt
+    }
 }
 
 impl Serialize for CryptData {
