@@ -1,4 +1,5 @@
 use crate::state::settings::general_behaviour::GeneralBehaviour;
+use crate::state::settings::security::Security;
 use crate::state::settings::theme::ThemeSettings;
 use as_result_enum::AsResultEnum;
 use key_as_enum::KeysAsEnum;
@@ -17,4 +18,6 @@ pub struct Settings {
     pub theme: ThemeSettings,
     /// The general behaviour settings
     pub general_behaviour: GeneralBehaviour,
+    /// The security settings
+    pub security: Security,
 }

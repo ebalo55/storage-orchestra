@@ -8,7 +8,7 @@ use once_cell::sync::OnceCell;
 use specta::specta;
 use std::path::PathBuf;
 use tauri::path::BaseDirectory;
-use tauri::{command, AppHandle, Manager, State};
+use tauri::{AppHandle, Manager, State, command};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
@@ -156,6 +156,9 @@ pub async fn update_settings(
         }
         SettingsResult::general_behaviour(data) => {
             settings.general_behaviour = data;
+        }
+        SettingsResult::security(data) => {
+            settings.security = data;
         }
     }
 
