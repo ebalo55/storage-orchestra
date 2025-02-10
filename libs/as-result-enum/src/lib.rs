@@ -2,7 +2,10 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
-use syn::{Attribute, Data, DeriveInput, Fields, Meta, Token, parse_macro_input};
+use syn::{
+    Attribute, Data, DeriveInput, Fields, GenericArgument, Meta, PathArguments, Token, Type,
+    parse_macro_input, parse_quote,
+};
 
 #[proc_macro_derive(AsResultEnum, attributes(derive_extra))]
 pub fn as_result_enum(input: TokenStream) -> TokenStream {
@@ -46,6 +49,8 @@ pub fn as_result_enum(input: TokenStream) -> TokenStream {
         let field_type = &field.ty;
         let field_attrs: Vec<Attribute> = field.attrs.clone();
 
+        let stripped_type = strip_option_arc_rwlock(field_type);
+
         if field_attrs.iter().any(|attr| {
             attr.path().is_ident("serde")
                 && attr.parse_args::<Meta>().ok().map_or(
@@ -58,7 +63,7 @@ pub fn as_result_enum(input: TokenStream) -> TokenStream {
 
         Some(quote! {
             #(#field_attrs)*
-            #field_name(#field_type)
+            #field_name(#stripped_type)
         })
     });
 
@@ -122,4 +127,33 @@ fn to_pascal_case(s: &str) -> String {
         })
         .collect::<Vec<String>>()
         .join("")
+}
+
+fn strip_option_arc_rwlock(ty: &Type) -> Type {
+    if let Type::Path(type_path) = ty {
+        if let Some(segment) = type_path.path.segments.last() {
+            if segment.ident == "Arc" {
+                if let PathArguments::AngleBracketed(args) = &segment.arguments {
+                    if let Some(GenericArgument::Type(inner_type)) = args.args.first() {
+                        return strip_option_arc_rwlock(inner_type);
+                    }
+                }
+            } else if segment.ident == "RwLock" {
+                if let PathArguments::AngleBracketed(args) = &segment.arguments {
+                    if let Some(GenericArgument::Type(inner_type)) = args.args.first() {
+                        return strip_option_arc_rwlock(inner_type);
+                    }
+                }
+            }
+            if segment.ident == "Option" {
+                if let PathArguments::AngleBracketed(args) = &segment.arguments {
+                    if let Some(GenericArgument::Type(inner_type)) = args.args.first() {
+                        let inner_type = strip_option_arc_rwlock(inner_type);
+                        return parse_quote!(Option<#inner_type>);
+                    }
+                }
+            }
+        }
+    }
+    ty.clone()
 }
