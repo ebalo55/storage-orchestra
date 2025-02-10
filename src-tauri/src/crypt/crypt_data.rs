@@ -1,7 +1,9 @@
 use crate::crypt::encoding::{decode, encode};
 use crate::crypt::encryption::{decrypt, encrypt};
 use crate::crypt::hash::hash;
-use crate::crypt::{CryptDataMode, DerivedKey, ENCRYPTION_KEY_LENGTH, ENCRYPTION_NONCE_LENGTH};
+use crate::crypt::{
+    CryptDataMode, DerivedKey, ENCRYPTION_KEY_LENGTH, ENCRYPTION_NONCE_LENGTH, hmac,
+};
 use crate::state::PASSWORD;
 use crate::state::state::AppState;
 use base64ct::Encoding;
@@ -206,6 +208,15 @@ impl CryptData {
         String::from_utf8_lossy(&self.data).to_string()
     }
 
+    /// Get the working mode of the data
+    ///
+    /// # Returns
+    ///
+    /// The working mode of the data
+    pub fn get_modes(&self) -> Vec<CryptDataMode> {
+        CryptDataMode::from_u8(self.mode)
+    }
+
     /// Create a new CryptData struct
     ///
     /// # Arguments
@@ -233,12 +244,37 @@ impl CryptData {
 
         // Hash, encrypt, and encode the data if needed
         instance.hash();
+
         if key.is_some() {
-            let _ = instance.encrypt(key.unwrap());
+            let key = key.unwrap();
+
+            let _ = instance.hmac(key.clone());
+            let _ = instance.encrypt(key);
         }
         instance.encode();
 
         instance
+    }
+
+    /// HMAC the data if needed
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key to use for HMACing
+    ///
+    /// # Returns
+    ///
+    /// Nothing
+    fn hmac(&mut self, key: &[u8]) -> Result<(), String> {
+        if CryptDataMode::should_hmac(self.mode) {
+            debug!("Data is not HMACed, HMACing it");
+
+            // Perform the HMAC
+            self.data = hmac(&self.raw_data.as_ref().unwrap(), key, None)?.into_bytes();
+            debug!("Data HMACed successfully");
+        }
+
+        Ok(())
     }
 
     /// Hash the data if needed
@@ -248,9 +284,7 @@ impl CryptData {
     /// Nothing
     fn hash(&mut self) {
         if CryptDataMode::should_hash(self.mode) {
-            self.data = hash(&self.raw_data.as_ref().unwrap(), None)
-                .as_bytes()
-                .to_vec();
+            self.data = hash(&self.raw_data.as_ref().unwrap(), None).into_bytes();
         }
     }
 

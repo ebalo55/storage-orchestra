@@ -38,6 +38,34 @@ impl DerivedKey {
         })
     }
 
+    /// Derives a key from a password.
+    ///
+    /// # Arguments
+    ///
+    /// * `password` - The password to derive the key from.
+    /// * `salt` - The salt to use for the derivation. If `None`, a random salt will be generated.
+    /// * `key_length` - The length of the key to derive.
+    ///
+    /// # Returns
+    ///
+    /// The derived key.
+    pub fn from_byte_key(
+        password: &[u8],
+        salt: Option<&[u8]>,
+        key_length: u8,
+    ) -> Result<Self, String> {
+        let salt = make_salt_if_missing(salt);
+        let hk = Hkdf::<Sha3_512>::new(Some(&salt), password);
+
+        let mut okm = vec![0u8; key_length as usize];
+        hk.expand(&[0u8], &mut okm).map_err(|err| err.to_string())?;
+
+        Ok(DerivedKey {
+            key: okm,
+            salt: salt.to_vec(),
+        })
+    }
+
     /// Derives a key from a password vector.
     ///
     /// # Arguments

@@ -2,15 +2,17 @@
 #[derive(Debug, PartialEq, Eq)]
 pub enum CryptDataMode {
     /// Represent the hashing of data
-    Hash = 0b001,
+    Hash = 0b0001,
     /// Represent the encoding of data
-    Encode = 0b010,
+    Encode = 0b0010,
     /// Represent the encryption of data
-    Encrypt = 0b100,
+    Encrypt = 0b0100,
+    /// Represent the HMAC of data
+    Hmac = 0b1000,
     /// Marks the data as being a password hash, this is used to uniquely identify the password in the state
     PasswordHash = 0b0001_0001,
-    /// Marks the data as being a signature hash, this is used to uniquely identify the signature in the state
-    SignatureHash = 0b0010_0001,
+    /// Marks the data as being a signature hmac, this is used to uniquely identify the signature in the state
+    SignatureHash = 0b0010_1000,
     /// Marks the data as having been modified during serialization
     ModifiedDuringSerialization = 0b1000_0000,
 }
@@ -19,6 +21,9 @@ impl CryptDataMode {
     pub fn strip_string_mode(mode: &str) -> &str {
         if mode.starts_with("hash:") {
             return mode.strip_prefix("hash:").unwrap();
+        }
+        if mode.starts_with("hmac:") {
+            return mode.strip_prefix("hmac:").unwrap();
         }
         if mode.starts_with("encode:") {
             return mode.strip_prefix("encode:").unwrap();
@@ -49,6 +54,9 @@ impl CryptDataMode {
         }
         if Self::should_encrypt(mode) {
             modes.push(CryptDataMode::Encrypt);
+        }
+        if Self::should_hmac(mode) {
+            modes.push(CryptDataMode::Hmac);
         }
         if Self::has_been_modified_during_serialization(mode) {
             modes.push(CryptDataMode::ModifiedDuringSerialization);
@@ -121,6 +129,19 @@ impl CryptDataMode {
         mode & CryptDataMode::Encrypt as u8 != 0
     }
 
+    /// Check if the data should be HMACed
+    ///
+    /// # Arguments
+    ///
+    /// * `mode` - The working mode of the data
+    ///
+    /// # Returns
+    ///
+    /// Whether the data should be HMACed
+    pub fn should_hmac(mode: u8) -> bool {
+        mode & CryptDataMode::Hmac as u8 != 0
+    }
+
     /// Convert a string to the working modes
     ///
     /// # Arguments
@@ -131,6 +152,9 @@ impl CryptDataMode {
 
         if mode.starts_with("hash:") {
             modes.push(CryptDataMode::Hash);
+        }
+        if mode.starts_with("hmac:") {
+            modes.push(CryptDataMode::Hmac);
         }
         if mode.starts_with("encode:") {
             modes.push(CryptDataMode::Encode);
