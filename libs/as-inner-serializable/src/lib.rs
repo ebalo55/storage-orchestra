@@ -179,7 +179,11 @@ pub fn provider_data_derive(input: TokenStream) -> TokenStream {
             where
                 S: serde::ser::Serializer,
             {
-                let data = tauri::async_runtime::block_on(self.into_inner());
+                let data = tokio::task::block_in_place(|| {
+                    tauri::async_runtime::block_on(async {
+                        self.into_inner().await
+                    })
+                });
                 data.serialize(serializer)
             }
         }
