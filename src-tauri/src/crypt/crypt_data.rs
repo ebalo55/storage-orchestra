@@ -53,7 +53,10 @@ impl Serialize for CryptData {
         let mut state = serializer.serialize_struct("CryptData", 4)?;
 
         // If the data is already encoded or hashed, serialize it as a string
-        if CryptDataMode::should_encode(this.mode) || CryptDataMode::should_hash(this.mode) {
+        if CryptDataMode::should_encode(this.mode)
+            || CryptDataMode::should_hash(this.mode)
+            || CryptDataMode::should_hmac(this.mode)
+        {
             let data = String::from_utf8_lossy(&this.data).to_string();
             state.serialize_field("data", data.as_str())?;
         } else {
@@ -248,7 +251,7 @@ impl CryptData {
         if key.is_some() {
             let key = key.unwrap();
 
-            let _ = instance.hmac(key.clone());
+            let _ = instance.hmac(key);
             let _ = instance.encrypt(key);
         }
         instance.encode();
@@ -458,7 +461,7 @@ impl CryptData {
 #[specta]
 pub async fn crypt_data_get_raw_data_as_string(mut data: CryptData) -> Result<String, String> {
     debug!("Getting raw data as string from {:?}", data);
-    let key = PASSWORD.get().ok_or("Password not set")?;
+    let key = PASSWORD.get().ok_or("Password not set")?.read().await;
 
     Ok(data.get_raw_data_as_string(Some(key.as_bytes()))?)
 }
@@ -477,7 +480,7 @@ pub async fn crypt_data_get_raw_data_as_string(mut data: CryptData) -> Result<St
 #[specta]
 pub async fn crypt_data_get_raw_data(mut data: CryptData) -> Result<Vec<u8>, String> {
     debug!("Getting raw data from {:?}", data);
-    let key = PASSWORD.get().ok_or("Password not set")?;
+    let key = PASSWORD.get().ok_or("Password not set")?.read().await;
 
     Ok(data.get_raw_data(Some(key.as_bytes()))?)
 }
@@ -516,7 +519,7 @@ pub async fn make_crypt_data_from_qualified_string(data: String) -> Result<Crypt
         return Err("No mode set".to_owned());
     }
 
-    let key = PASSWORD.get().ok_or("Password not set")?;
+    let key = PASSWORD.get().ok_or("Password not set")?.read().await;
 
     Ok(CryptData::new(data, mode, Some(key.as_bytes()), None))
 }
@@ -525,6 +528,7 @@ pub async fn make_crypt_data_from_qualified_string(data: String) -> Result<Crypt
 mod tests {
     use super::*;
     use crate::crypt::verify;
+    use tokio::sync::RwLock;
 
     #[test]
     fn test_new() {
@@ -635,7 +639,7 @@ mod tests {
     #[tokio::test]
     async fn test_make_crypt_data_from_qualified_string() {
         let key = b"supersecretkey";
-        let _ = PASSWORD.set(String::from_utf8_lossy(key).to_string());
+        let _ = PASSWORD.set(RwLock::new(String::from_utf8_lossy(key).to_string()));
 
         let qualified_data = "secret:test string".to_owned();
         let mut crypt_data = make_crypt_data_from_qualified_string(qualified_data)
@@ -648,7 +652,7 @@ mod tests {
     #[tokio::test]
     async fn test_crypt_data_get_raw_data_as_string() {
         let key = b"supersecretkey";
-        let _ = PASSWORD.set(String::from_utf8_lossy(key).to_string());
+        let _ = PASSWORD.set(RwLock::new(String::from_utf8_lossy(key).to_string()));
 
         let qualified_data = "secret:test string".to_owned();
         let crypt_data = make_crypt_data_from_qualified_string(qualified_data)
@@ -661,7 +665,7 @@ mod tests {
     #[tokio::test]
     async fn test_crypt_data_get_raw_data() {
         let key = b"supersecretkey";
-        let _ = PASSWORD.set(String::from_utf8_lossy(key).to_string());
+        let _ = PASSWORD.set(RwLock::new(String::from_utf8_lossy(key).to_string()));
 
         let qualified_data = "secret:test string".to_owned();
         let crypt_data = make_crypt_data_from_qualified_string(qualified_data)

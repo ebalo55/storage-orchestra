@@ -67,7 +67,6 @@ pub fn decrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, String> {
         ));
     }
 
-    debug!("helloooooo");
     debug!("Decrypting data");
 
     let cipher = XChaCha20Poly1305::new(key.into());

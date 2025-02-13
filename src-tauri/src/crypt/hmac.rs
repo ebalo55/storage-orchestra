@@ -2,6 +2,7 @@ use crate::crypt::salt::make_salt_if_missing;
 use crate::crypt::{DerivedKey, decode, encode};
 use hmac::{Hmac, Mac};
 use sha3::{Digest, Sha3_512};
+use tracing::{debug, error};
 
 pub type HmacSha3_512 = Hmac<Sha3_512>;
 
@@ -46,21 +47,27 @@ pub fn verify_hmac(data: &[u8], key: &[u8], hash: &str) -> bool {
 
     let key = DerivedKey::from_byte_key(key, Some(&salt), 64);
     if key.is_err() {
+        error!("Failed to derive key: {}", key.err().unwrap());
         return false;
     }
     let key = key.unwrap().key;
 
     let mut hasher = HmacSha3_512::new_from_slice(&key).map_err(|err| err.to_string());
     if hasher.is_err() {
+        error!("Failed to create hasher: {}", hasher.err().unwrap());
         return false;
     }
     let mut hasher = hasher.unwrap();
 
     hasher.update(data);
     hasher.update(&salt);
-    let hash2 = hasher.finalize().into_bytes().to_vec();
 
-    hash == hash2
+    let result = hasher.verify_slice(hash);
+    if result.is_err() {
+        error!("Failed to verify hash: {}", result.err().unwrap());
+    }
+
+    result.is_ok()
 }
 
 #[cfg(test)]
