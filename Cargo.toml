@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["./src-tauri", "./libs/key-as-enum", "./libs/as-result-enum"]
+members = ["./src-tauri", "./libs/key-as-enum", "./libs/as-result-enum", "libs/as-inner-serializable"]
 
 [workspace.package]
 version = "0.1.0"

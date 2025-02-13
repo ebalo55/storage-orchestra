@@ -79,6 +79,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
 
 [[package]]
+name = "as-inner-serializable"
+version = "0.1.0"
+dependencies = [
+    "proc-macro2",
+    "quote",
+    "syn 1.0.109",
+]
+
+[[package]]
 name = "as-result-enum"
 version = "0.1.0"
 dependencies = [
@@ -3976,6 +3985,7 @@ dependencies = [
  "serde_json",
  "specta-macros",
  "thiserror 1.0.69",
+    "tokio",
 ]
 
 [[package]]
@@ -4033,12 +4043,14 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 name = "storage-orchestra"
 version = "0.1.0"
 dependencies = [
+    "as-inner-serializable",
  "as-result-enum",
  "async-trait",
  "base64ct",
  "chacha20poly1305",
  "educe",
  "hkdf",
+    "hmac",
  "key-as-enum",
  "once_cell",
  "rand 0.9.0",

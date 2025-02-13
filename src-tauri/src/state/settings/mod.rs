@@ -9,10 +9,11 @@ use specta::Type;
 pub mod general_behaviour;
 mod security;
 pub mod security_commands;
+mod state_cryptdata_instances;
 pub mod theme;
 
 /// The settings of the application
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, Default, AsResultEnum)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Default, AsResultEnum)]
 #[derive_extra(Type)]
 pub struct Settings {
     /// The theme settings

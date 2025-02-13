@@ -1,22 +1,25 @@
 use crate::crypt;
-use crate::crypt::{CryptData, CryptDataMode};
+use crate::crypt::{CryptData, CryptDataMode, verify_hmac};
 use crate::state::settings::{Settings, SettingsResult};
 use crate::state::state::{
-    AppState, AppStateInner, AppStateInnerKeys, AppStateInnerResult, STATE_FILE,
+    AppState, AppStateDeep, AppStateDeepKeys, AppStateDeepResult, STATE_FILE,
 };
 use once_cell::sync::OnceCell;
 use specta::specta;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tauri::path::BaseDirectory;
-use tauri::{AppHandle, Manager, State, command};
+use tauri::{App, AppHandle, Manager, State, command};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+use tokio::sync::RwLock;
+use tracing::debug;
 
 /// The password for the application secure storage.
 ///
 /// This is currently stored in plain text in memory.
 /// TODO: Implement a secret manager to store the password securely while the application is running.
-pub static PASSWORD: OnceCell<String> = OnceCell::new();
+pub static PASSWORD: OnceCell<RwLock<String>> = OnceCell::new();
 
 /// Sets the password for the application secure storage.
 ///
@@ -48,11 +51,12 @@ pub async fn init_state(
         *writable_state = stored_state;
 
         // update the password in the state to ensure the password gets saved to disk
-        writable_state.password = CryptData::new(
+        writable_state.password = Arc::new(RwLock::new(CryptData::new(
             password.as_str().as_bytes().to_vec(),
             CryptDataMode::to_u8(vec![CryptDataMode::Hash]),
             None,
-        );
+            None,
+        )));
 
         // immediately drop the lock
         drop(writable_state);
@@ -61,11 +65,12 @@ pub async fn init_state(
         let mut writable_state = state.write().await;
 
         // update the password in the state to ensure the password gets saved to disk
-        writable_state.password = CryptData::new(
+        writable_state.password = Arc::new(RwLock::new(CryptData::new(
             password.as_str().as_bytes().to_vec(),
             CryptDataMode::to_u8(vec![CryptDataMode::Hash]),
             None,
-        );
+            None,
+        )));
 
         // immediately drop the lock
         drop(writable_state);
@@ -73,7 +78,7 @@ pub async fn init_state(
 
     // store the password
     PASSWORD
-        .set(password)
+        .set(RwLock::new(password))
         .map_err(|e| "Password already defined")?;
 
     Ok(())
@@ -108,7 +113,14 @@ pub async fn is_authenticated() -> bool {
 #[command]
 #[specta]
 pub async fn get_password() -> Result<String, String> {
-    PASSWORD.get().cloned().ok_or("Password not set".to_owned())
+    let psw = PASSWORD
+        .get()
+        .ok_or("Password not set".to_owned())?
+        .read()
+        .await
+        .clone();
+
+    Ok(psw)
 }
 
 /// Gets the settings of the application.
@@ -123,10 +135,10 @@ pub async fn get_password() -> Result<String, String> {
 #[command]
 #[specta]
 pub async fn load_settings(state: State<'_, AppState>) -> Result<Settings, String> {
-    get_from_state(state, AppStateInnerKeys::Settings)
+    get_from_state(state, AppStateDeepKeys::Settings)
         .await
         .map(|res| match res {
-            AppStateInnerResult::settings(settings) => settings,
+            AppStateDeepResult::settings(settings) => settings,
             _ => unreachable!(),
         })
 }
@@ -162,7 +174,7 @@ pub async fn update_settings(
         }
     }
 
-    insert_in_state(app, state, AppStateInnerResult::settings(settings)).await
+    insert_in_state(app, state, AppStateDeepResult::settings(settings)).await
 }
 
 /// Gets data from the state.
@@ -179,17 +191,17 @@ pub async fn update_settings(
 #[specta]
 pub async fn get_from_state(
     state: State<'_, AppState>,
-    key: AppStateInnerKeys,
-) -> Result<AppStateInnerResult, String> {
+    key: AppStateDeepKeys,
+) -> Result<AppStateDeepResult, String> {
     let readable_state = state.read().await;
 
     match key {
-        AppStateInnerKeys::Password => Err("Cannot get data from password".to_owned()),
-        AppStateInnerKeys::DebouncedSaver => Err("Cannot get data from debounced saver".to_owned()),
-        AppStateInnerKeys::Providers => Ok(AppStateInnerResult::providers(
+        AppStateDeepKeys::Password => Err("Cannot get data from password".to_owned()),
+        AppStateDeepKeys::DebouncedSaver => Err("Cannot get data from debounced saver".to_owned()),
+        AppStateDeepKeys::Providers => Ok(AppStateDeepResult::providers(
             readable_state.providers.clone(),
         )),
-        AppStateInnerKeys::Settings => Ok(AppStateInnerResult::settings(
+        AppStateDeepKeys::Settings => Ok(AppStateDeepResult::settings(
             readable_state.settings.clone(),
         )),
     }
@@ -210,20 +222,20 @@ pub async fn get_from_state(
 pub async fn remove_from_state(
     app: AppHandle,
     state: State<'_, AppState>,
-    key: AppStateInnerKeys,
+    key: AppStateDeepKeys,
 ) -> Result<(), String> {
     let mut writable_state = state.write().await;
     match key {
-        AppStateInnerKeys::Password => {
+        AppStateDeepKeys::Password => {
             return Err("Cannot remove password from the state".to_owned());
         }
-        AppStateInnerKeys::DebouncedSaver => {
+        AppStateDeepKeys::DebouncedSaver => {
             return Err("Cannot remove debounced saver from the state".to_owned());
         }
-        AppStateInnerKeys::Providers => {
+        AppStateDeepKeys::Providers => {
             writable_state.providers = Vec::new();
         }
-        AppStateInnerKeys::Settings => {
+        AppStateDeepKeys::Settings => {
             writable_state.settings = Settings::default();
         }
     }
@@ -248,18 +260,18 @@ pub async fn remove_from_state(
 pub async fn insert_in_state(
     app: AppHandle,
     state: State<'_, AppState>,
-    value: AppStateInnerResult,
+    value: AppStateDeepResult,
 ) -> Result<(), String> {
     match value {
-        AppStateInnerResult::password(_) => {
+        AppStateDeepResult::password(_) => {
             return Err("Cannot insert data in password, use 'init_state' instead".to_owned());
         }
-        AppStateInnerResult::providers(data) => {
+        AppStateDeepResult::providers(data) => {
             let mut writable_state = state.write().await;
             writable_state.providers = data;
             drop(writable_state);
         }
-        AppStateInnerResult::settings(data) => {
+        AppStateDeepResult::settings(data) => {
             let mut writable_state = state.write().await;
             writable_state.settings = data;
             drop(writable_state);
@@ -269,7 +281,18 @@ pub async fn insert_in_state(
     save(app, state).await
 }
 
-async fn save(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+/// Saves the state to disk.
+///
+/// # Arguments
+///
+/// * `app` - The application handle.
+/// * `state` - The state to save.
+///
+/// # Returns
+///
+/// Nothing.
+pub async fn save(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    update_state_signature(state.clone()).await?;
     let readable_state = state.read().await;
 
     readable_state
@@ -303,6 +326,39 @@ async fn save(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> 
     Ok(())
 }
 
+/// Updates the state signature.
+///
+/// This function is used to update the state signature after a state modification.
+///
+/// # Arguments
+///
+/// * `state` - The state to update the signature in.
+///
+/// # Returns
+///
+/// Nothing.
+async fn update_state_signature(state: State<'_, AppState>) -> Result<(), String> {
+    let mut unsigned_state = state.write().await;
+    // set the signature to a new empty signature, this is needed to compute the signature of the state
+    unsigned_state.settings.security.signature = Arc::new(RwLock::new(CryptData::default()));
+    let json = serde_json::to_string(&*unsigned_state).map_err(|e| e.to_string())?;
+    drop(unsigned_state);
+
+    // compute the signature of the state
+    let signature = CryptData::new(
+        json.into_bytes(),
+        CryptDataMode::to_u8(vec![CryptDataMode::SignatureHash, CryptDataMode::Hmac]),
+        Some(PASSWORD.get().unwrap().read().await.as_bytes()),
+        None,
+    );
+
+    let mut writable_state = state.write().await;
+    writable_state.settings.security.signature = Arc::new(RwLock::new(signature));
+    drop(writable_state);
+
+    Ok(())
+}
+
 /// Checks the password for the application secure storage.
 ///
 /// If the password is correct, the state is returned.
@@ -315,23 +371,64 @@ async fn save(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> 
 /// # Returns
 ///
 /// Nothing.
-async fn check_password(psw: String, state_file: PathBuf) -> Result<AppStateInner, String> {
+async fn check_password(psw: String, state_file: PathBuf) -> Result<AppStateDeep, String> {
     let state_file = File::options()
         .read(true)
         .open(state_file)
         .await
         .map_err(|err| err.to_string())?;
-    let mut stored_state = serde_json::from_reader::<_, AppStateInner>(state_file.into_std().await)
+    let mut stored_state = serde_json::from_reader::<_, AppStateDeep>(state_file.into_std().await)
         .map_err(|err| err.to_string())?;
 
     if crypt::verify(
         psw.as_str().as_bytes(),
-        stored_state.password.get_data_as_string().as_str(),
+        stored_state
+            .password
+            .read()
+            .await
+            .get_data_as_string()
+            .as_str(),
     ) {
+        verify_state_signature(stored_state.clone(), psw.as_str()).await?;
+
         Ok(stored_state)
     } else {
         Err("Invalid password".to_string())
     }
+}
+
+/// Verifies the state signature.
+///
+/// # Arguments
+///
+/// * `state` - The state to verify the signature of.
+/// * `psw` - The password to use to verify the signature.
+///
+/// # Returns
+///
+/// Nothing.
+async fn verify_state_signature(mut state: AppStateDeep, psw: &str) -> Result<(), String> {
+    // extract the signature from the state
+    let state_signature = state
+        .settings
+        .security
+        .signature
+        .read()
+        .await
+        .get_data_as_string();
+    debug!("verify_state_signature: {}", state_signature);
+
+    // reset the signature to a default empty signature
+    state.settings.security.signature = Arc::new(RwLock::new(CryptData::default()));
+    let json = serde_json::to_string(&state).map_err(|e| e.to_string())?;
+
+    debug!("verify_state_signature.JSON: {}", json);
+
+    if !verify_hmac(json.as_bytes(), psw.as_bytes(), state_signature.as_str()) {
+        return Err("Invalid state signature".to_string());
+    }
+
+    Ok(())
 }
 
 /// Creates the state file.
@@ -353,12 +450,13 @@ async fn create_state_file(state_file: PathBuf, password: String) -> Result<(), 
         .await
         .map_err(|e| e.to_string())?;
 
-    let state = AppStateInner {
-        password: CryptData::new(
+    let state = AppStateDeep {
+        password: Arc::new(RwLock::new(CryptData::new(
             password.as_str().as_bytes().to_vec(),
             CryptDataMode::to_u8(vec![CryptDataMode::Hash, CryptDataMode::PasswordHash]),
             None,
-        ),
+            None,
+        ))),
         ..Default::default()
     };
 

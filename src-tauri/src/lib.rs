@@ -2,7 +2,7 @@ mod crypt;
 mod state;
 mod utility;
 
-use crate::state::state::{AppStateInner, STATE_FILE};
+use crate::state::state::{AppStateDeep, STATE_FILE};
 use specta::specta;
 use specta_typescript::Typescript;
 use std::{fs, io};
@@ -76,6 +76,7 @@ pub fn run() -> Result<(), String> {
             state::load_settings,
             state::update_settings,
             state::check_password,
+            state::update_password,
             crypt::crypt_data_get_raw_data_as_string,
             crypt::crypt_data_get_raw_data,
             crypt::make_crypt_data_from_qualified_string,
@@ -105,7 +106,7 @@ pub fn run() -> Result<(), String> {
         .setup(move |app| {
             builder.mount_events(app);
 
-            app.manage(RwLock::new(AppStateInner::default()));
+            app.manage(RwLock::new(AppStateDeep::default()));
 
             // let window = app.get_webview_window("main").unwrap();
             // window.eval("window.location.replace('https://google.com')");
