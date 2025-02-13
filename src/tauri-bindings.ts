@@ -54,7 +54,7 @@ export const commands = {
      *
      * The data as a JSON value.
      */
-    async getFromState(key: AppStateInnerKeys): Promise<Result<AppStateInnerResult, string>> {
+    async getFromState(key: AppStateDeepKeys): Promise<Result<AppStateDeepResult, string>> {
         try {
             return {status: "ok", data: await TAURI_INVOKE("get_from_state", {key})};
         }
@@ -79,7 +79,7 @@ export const commands = {
      *
      * Nothing.
      */
-    async removeFromState(key: AppStateInnerKeys): Promise<Result<null, string>> {
+    async removeFromState(key: AppStateDeepKeys): Promise<Result<null, string>> {
         try {
             return {status: "ok", data: await TAURI_INVOKE("remove_from_state", {key})};
         }
@@ -104,7 +104,7 @@ export const commands = {
      *
      * Nothing.
      */
-    async insertInState(value: AppStateInnerResult): Promise<Result<null, string>> {
+    async insertInState(value: AppStateDeepResult): Promise<Result<null, string>> {
         try {
             return {status: "ok", data: await TAURI_INVOKE("insert_in_state", {value})};
         }
@@ -196,6 +196,64 @@ export const commands = {
     async updateSettings(value: SettingsResult): Promise<Result<null, string>> {
         try {
             return {status: "ok", data: await TAURI_INVOKE("update_settings", {value})};
+        }
+        catch (e) {
+            if (e instanceof Error) {
+                throw e;
+            }
+            else {
+                return {status: "error", error: e as any};
+            }
+        }
+    },
+    /**
+     * Check that the password is correct
+     *
+     * # Arguments
+     *
+     * - `state` - The application state
+     * - `password` - The password to check
+     *
+     * # Returns
+     *
+     * Returns `Ok(())` if the password is correct, otherwise returns `Err("Invalid password")`
+     */
+    async checkPassword(password: string): Promise<Result<null, string>> {
+        try {
+            return {status: "ok", data: await TAURI_INVOKE("check_password", {password})};
+        }
+        catch (e) {
+            if (e instanceof Error) {
+                throw e;
+            }
+            else {
+                return {status: "error", error: e as any};
+            }
+        }
+    },
+    /**
+     * Update the password
+     *
+     * Note that this triggers the update of all encrypted data too as the password is used to encrypt them.
+     *
+     * # Arguments
+     *
+     * - `state` - The application state
+     * - `current_password` - The current password
+     * - `new_password` - The new password
+     * - `ev` - The event channel
+     *
+     * # Returns
+     *
+     * Returns `Ok(())` if the password was updated successfully, otherwise returns `Err(String)`
+     */
+    async updatePassword(
+        currentPassword: string,
+        newPassword: string,
+        ev: TAURI_CHANNEL<PasswordUpdateEvent>,
+    ): Promise<Result<null, string>> {
+        try {
+            return {status: "ok", data: await TAURI_INVOKE("update_password", {currentPassword, newPassword, ev})};
         }
         catch (e) {
             if (e instanceof Error) {
@@ -301,8 +359,8 @@ export const STATE_FILE = "state.json" as const;
 
 /** user-defined types **/
 
-export type AppStateInnerKeys = "debounced_saver" | "password" | "providers" | "settings"
-export type AppStateInnerResult = 
+export type AppStateDeepKeys = "debounced_saver" | "password" | "providers" | "settings"
+export type AppStateDeepResult = 
 /**
  * The password to access the secure storage
  */
@@ -340,7 +398,12 @@ export type CryptData = {
     /**
      * The salt applied when deriving the encryption key
      */
-    salt: number[] | null
+    salt: number[] | null;
+    /**
+     * The list of related keys in the parent struct, this is used to understand which values are
+     * required to (re-)compute the hash
+     */
+    related_keys: string[]
 }
 export type DefaultPageGeneralGroup = 
 /**
@@ -445,6 +508,19 @@ export type GeneralBehaviour = {
      */
     compress_files: Partial<{ [key in StorageProvider]: boolean }>
 }
+export type PasswordUpdateEvent =
+    {
+        event: "initialized";
+        data: {
+            steps: number
+        }
+    }
+    | {
+        event: "step_completed"
+    }
+    | {
+        event: "completed"
+    }
 /**
  * The data of a storage provider
  */
@@ -572,7 +648,10 @@ export type TwoFactorAuthentication = {
 
 /** tauri-specta globals **/
 
-import {invoke as TAURI_INVOKE} from "@tauri-apps/api/core";
+import {
+    Channel as TAURI_CHANNEL,
+    invoke as TAURI_INVOKE,
+} from "@tauri-apps/api/core";
 import * as TAURI_API_EVENT from "@tauri-apps/api/event";
 import {type WebviewWindow as __WebviewWindow__} from "@tauri-apps/api/webviewWindow";
 

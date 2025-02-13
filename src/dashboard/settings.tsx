@@ -143,9 +143,7 @@ export default function Settings() {
                                           refreshSettings={refreshSettings}
                                           updateSettings={updateSettings}/>
                             <Divider/>
-                            <UpdatePassword settings={settings}
-                                            refreshSettings={refreshSettings}
-                                            updateSettings={updateSettings}/>
+                            <UpdatePassword/>
                         </Stack>
                     </Card>
                 </TabsPanel>

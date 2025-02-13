@@ -1,7 +1,6 @@
 import {
     Button,
     PasswordInput,
-    Skeleton,
     Stack,
     Text,
 } from "@mantine/core";
@@ -9,6 +8,7 @@ import {
     useForm,
     UseFormReturnType,
 } from "@mantine/form";
+import {Channel} from "@tauri-apps/api/core";
 import {yupResolver} from "mantine-form-yup-resolver";
 import {
     Dispatch,
@@ -18,6 +18,10 @@ import {
     useState,
 } from "react";
 import * as yup from "yup";
+import {
+    commands,
+    PasswordUpdateEvent,
+} from "../../../../tauri-bindings.ts";
 import {SettingRow} from "../../setting-row.tsx";
 
 type FormValues = {
@@ -35,9 +39,33 @@ async function handleSubmit(
     setIsUpdatingPassword(true);
     console.log("Updating password");
 
+    let steps = 0;
+    let completed_steps = 0;
 
-    console.log("Password updated");
-    setIsUpdatingPassword(false);
+    const channel = new Channel<PasswordUpdateEvent>();
+    channel.onmessage = (event) => {
+        console.log(event);
+        if (event.event === "completed") {
+            console.log("Password updated");
+            setIsUpdatingPassword(false);
+            form.reset();
+        }
+        else if (event.event === "step_completed") {
+            completed_steps++;
+            console.log(`Step ${completed_steps}/${steps} completed`);
+        }
+        else {
+            steps = event.data.steps;
+            console.log(`Password update initialized with ${steps} steps`);
+        }
+    };
+
+    const response = await commands.updatePassword(values.current_password, values.new_password, channel);
+    if (response.status === "error") {
+        console.error(response.error);
+        setIsUpdatingPassword(false);
+        form.reset();
+    }
 }
 
 export const UpdatePassword: FC = () => {
@@ -77,47 +105,35 @@ export const UpdatePassword: FC = () => {
                 update_password_form,
             ))}>
                 <Stack w={"100%"}>
-                    {
-                        !settings && <Skeleton height={40}
-                                               animate
-                                               maw={"24rem"}
-                                               ml={"auto"}/>
-                    }
-                    {
-                        settings && (
-                            <>
-                                <PasswordInput
-                                    ref={ref}
-                                    placeholder={"Current master password"}
-                                    ml={"auto"}
-                                    maw={"24rem"}
-                                    miw={"24rem"}
-                                    {...update_password_form.getInputProps("current_password")}
-                                />
-                                <PasswordInput
-                                    placeholder={"New master password"}
-                                    ml={"auto"}
-                                    maw={"24rem"}
-                                    miw={"24rem"}
-                                    {...update_password_form.getInputProps("new_password")}
-                                />
-                                <PasswordInput
-                                    placeholder={"Confirm new master password"}
-                                    ml={"auto"}
-                                    maw={"24rem"}
-                                    miw={"24rem"}
-                                    {...update_password_form.getInputProps("confirm_password")}
-                                />
-                                <Button variant={"light"}
-                                        type={"submit"}
-                                        maw={"12rem"}
-                                        ml={"auto"}
-                                        loading={is_updating_password}>
-                                    Update password
-                                </Button>
-                            </>
-                        )
-                    }
+                    <PasswordInput
+                        ref={ref}
+                        placeholder={"Current master password"}
+                        ml={"auto"}
+                        maw={"24rem"}
+                        miw={"24rem"}
+                        {...update_password_form.getInputProps("current_password")}
+                    />
+                    <PasswordInput
+                        placeholder={"New master password"}
+                        ml={"auto"}
+                        maw={"24rem"}
+                        miw={"24rem"}
+                        {...update_password_form.getInputProps("new_password")}
+                    />
+                    <PasswordInput
+                        placeholder={"Confirm new master password"}
+                        ml={"auto"}
+                        maw={"24rem"}
+                        miw={"24rem"}
+                        {...update_password_form.getInputProps("confirm_password")}
+                    />
+                    <Button variant={"light"}
+                            type={"submit"}
+                            maw={"12rem"}
+                            ml={"auto"}
+                            loading={is_updating_password}>
+                        Update password
+                    </Button>
                 </Stack>
             </form>
         </SettingRow>
