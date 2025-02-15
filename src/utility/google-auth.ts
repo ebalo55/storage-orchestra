@@ -1,21 +1,29 @@
-import {
-    cancel,
-    onUrl,
-    start,
-} from "@fabianlars/tauri-plugin-oauth";
-import {fetch} from "@tauri-apps/plugin-http";
-import {sendNotification} from "@tauri-apps/plugin-notification";
-import {openUrl} from "@tauri-apps/plugin-opener";
+import { cancel, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
+import { fetch } from "@tauri-apps/plugin-http";
+import { sendNotification } from "@tauri-apps/plugin-notification";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import querystring from "query-string";
-import {
-    commands,
-    ProviderData,
-} from "../tauri-bindings.ts";
-import {dayjs} from "./dayjs.ts";
-import {
-    State,
-    StateMarker,
-} from "./state.ts";
+import { commands, ProviderData } from "../tauri-bindings.ts";
+import { dayjs } from "./dayjs.ts";
+import { State, StateMarker } from "./state.ts";
+
+export interface GoogleFileListing {
+    nextPageToken?: string;
+    incompleteSearch: boolean;
+    files: GoogleFile[];
+}
+
+export interface GoogleFile {
+    id: string;
+    name: string;
+    mimeType: string;
+}
+
+const ERROR_LISTING: GoogleFileListing = {
+    nextPageToken:    "",
+    incompleteSearch: false,
+    files:            [],
+};
 
 let instance: GoogleOAuth | undefined;
 
@@ -57,6 +65,47 @@ class GoogleOAuth {
         }
 
         throw new Error("No providers found in stronghold");
+    }
+
+    public async listFiles(owner: string, page?: string, folder: string = "root"): Promise<GoogleFileListing> {
+        let provider = this._providers.find((provider) => provider.owner === owner);
+        if (!provider) {
+            return ERROR_LISTING;
+        }
+
+        provider = await this.refreshProviderIfStale(provider);
+        if (!provider) {
+            return ERROR_LISTING;
+        }
+
+        const access_token = await this.unpackAccessToken(provider);
+        if (!access_token) {
+            return ERROR_LISTING;
+        }
+
+        const url = "https://www.googleapis.com/drive/v3/files?";
+        const response = await fetch(url + querystring.stringify({
+            includeItemsFromAllDrives: true,
+            supportsAllDrives:         true,
+            orderBy:                   "folder,name_natural",
+            pageSize:                  50,
+            pageToken:                 page,
+            corpora:                   "user",
+            q:                         `trashed = false and '${ folder }' in parents`,
+        }), {
+            headers: {
+                "Authorization": `Bearer ${ access_token }`,
+            },
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            return result as GoogleFileListing;
+        }
+        else {
+            console.error("Error fetching Google Drive files:", response.statusText);
+            return ERROR_LISTING;
+        }
     }
 
     /**
@@ -172,6 +221,46 @@ class GoogleOAuth {
     }
 
     /**
+     * Refresh a provider if it is stale
+     * @param {ProviderData} provider - The provider to refresh
+     * @returns {Promise<ProviderData>}
+     * @private
+     */
+    private async refreshProviderIfStale(provider: ProviderData) {
+        const now = dayjs.utc().unix();
+
+        if (provider.expiry <= now) {
+            const updated_provider = await this.refresh(provider);
+            if (updated_provider) {
+                console.log("Successfully refreshed Google OAuth token for provider", provider.owner);
+                return updated_provider;
+            }
+            else {
+                console.error("Failed to refresh Google OAuth token for provider", provider.owner);
+                return;
+            }
+        }
+
+        return provider;
+    }
+
+    /**
+     * Unpack the access token from a provider
+     * @param {ProviderData} provider
+     * @returns {Promise<string>}
+     * @private
+     */
+    private async unpackAccessToken(provider: ProviderData) {
+        const access_token = await commands.cryptDataGetRawDataAsString(provider.access_token);
+        if (access_token.status === "error") {
+            console.error("Failed to decrypt Google OAuth access token for provider", provider.owner);
+            return;
+        }
+
+        return access_token.data;
+    }
+
+    /**
      * Replace all Google providers with the current providers
      * @returns {Promise<void>}
      * @private
@@ -184,7 +273,7 @@ class GoogleOAuth {
         if ("providers" in all_providers) {
             // Remove all non-google providers and add the new providers
             const non_google_providers = all_providers.providers.filter((provider) => provider.provider !== "google");
-            await storage.insert({providers: [...non_google_providers, ...this._providers]});
+            await storage.insert({providers: [ ...non_google_providers, ...this._providers ]});
         }
     }
 

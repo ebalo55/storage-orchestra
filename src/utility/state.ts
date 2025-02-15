@@ -1,9 +1,4 @@
-import {
-    AppStateInnerKeys,
-    AppStateInnerResult,
-    commands,
-    STATE_FILE,
-} from "../tauri-bindings.ts";
+import { AppStateDeepKeys, AppStateDeepResult, commands, STATE_FILE } from "../tauri-bindings.ts";
 
 const VAULT_NAME = STATE_FILE;
 
@@ -86,7 +81,7 @@ class State {
      * @returns Promise<void>
      * @throws {Error}
      */
-    public async insert(value: AppStateInnerResult) {
+    public async insert(value: AppStateDeepResult) {
         const result = await commands.insertInState(value);
 
         if (result.status === "error") {
@@ -99,7 +94,7 @@ class State {
      * @param key - The key of the record to get
      * @returns Promise<string>
      */
-    public async get(key: AppStateInnerKeys): Promise<AppStateInnerResult> {
+    public async get(key: AppStateDeepKeys): Promise<AppStateDeepResult> {
         const result = await commands.getFromState(key);
 
         if (result.status === "error") {
@@ -114,7 +109,7 @@ class State {
      * @param key - The key of the record to remove
      * @returns Promise<void>
      */
-    public async remove(key: AppStateInnerKeys) {
+    public async remove(key: AppStateDeepKeys) {
         const result = await commands.removeFromState(key);
 
         if (result.status === "error") {

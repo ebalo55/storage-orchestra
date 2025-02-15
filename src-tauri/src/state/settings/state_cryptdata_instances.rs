@@ -92,13 +92,14 @@ pub async fn count_states_cryptdata_instances(state: Arc<State<'_, AppState>>) -
 ///
 /// A vector of mutable references to the crypt data instances
 pub async fn visit_states_cryptdata_instances<F, Fut>(
-    mut state: RwLockWriteGuard<'_, AppStateDeep>,
+    state: Arc<State<'_, AppState>>,
     mut visit_fn: Box<F>,
 ) -> Result<(), String>
 where
     F: FnMut(String, Arc<RwLock<CryptData>>) -> Fut + Send + Sync + 'static,
     Fut: Future<Output = Result<(), String>> + Send + 'static,
 {
+    let mut state = state.write().await;
     let default_crypt_data = CryptData::default();
 
     if *state.password.read().await != default_crypt_data {

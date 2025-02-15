@@ -439,34 +439,6 @@ export type DefaultPageGroups =
  */
 export type EncryptionSettings = {
     /**
-     * Whether to use advanced encryption.
-     * Advanced encryption is the default option based on XChaCha20-Poly1305.
-     * Data:
-     * - key: 256 bits (32 bytes)
-     * - nonce: 192 bits (24 bytes)
-     * - tag: 128 bits (16 bytes)
-     * Notes:
-     * - Implemented in TLS
-     * - Generally considered "more" secure than AES-GCM due to the longer nonce
-     * - Not a NIST standard
-     * - Very low probability of nonce reuse
-     */
-    advanced_encryption: boolean;
-    /**
-     * Whether to use military grade encryption.
-     * Military grade encryption is based on AES-256-GCM (SIV mode, https://en.wikipedia.org/wiki/AES-GCM-SIV).
-     * Data:
-     * - key: 256 bits (32 bytes)
-     * - nonce: 96 bits (12 bytes)
-     * - tag: 128 bits (16 bytes)
-     * Notes:
-     * - NIST accepted security standard
-     * - Used by the US government to protect classified information
-     * - Notably shorter nonce than XChaCha20-Poly1305
-     * - Higher probability of nonce reuse
-     */
-    military_grade_encryption: boolean;
-    /**
      * Whether to encrypt the state file.
      */
     encrypt_state: boolean;
@@ -561,11 +533,6 @@ export type ProviderPage = {
 }
 export type Security = {
     /**
-     * The password hint, this is used to help the user remember their password.
-     * This will be shown on every login screen.
-     */
-    password_hint: string | null;
-    /**
      * The encryption settings
      */
     encryption: EncryptionSettings;
@@ -648,12 +615,9 @@ export type TwoFactorAuthentication = {
 
 /** tauri-specta globals **/
 
-import {
-    Channel as TAURI_CHANNEL,
-    invoke as TAURI_INVOKE,
-} from "@tauri-apps/api/core";
+import { Channel as TAURI_CHANNEL, invoke as TAURI_INVOKE } from "@tauri-apps/api/core";
 import * as TAURI_API_EVENT from "@tauri-apps/api/event";
-import {type WebviewWindow as __WebviewWindow__} from "@tauri-apps/api/webviewWindow";
+import { type WebviewWindow as __WebviewWindow__ } from "@tauri-apps/api/webviewWindow";
 
 type __EventObj__<T> = {
     listen: (
@@ -690,12 +654,16 @@ function __makeEvents__<T extends Record<string, any>>(
             get: (_, event) => {
                 const name = mappings[event as keyof T];
 
-                return new Proxy((() => {}) as any, {
-                    apply: (_, __, [window]: [__WebviewWindow__]) => ({
-                        listen: (arg: any) => window.listen(name, arg),
-                        once:   (arg: any) => window.once(name, arg),
-                        emit:   (arg: any) => window.emit(name, arg),
-                    }),
+                return new Proxy((
+                    () => {}
+                ) as any, {
+                    apply: (_, __, [ window ]: [ __WebviewWindow__ ]) => (
+                        {
+                            listen: (arg: any) => window.listen(name, arg),
+                            once:   (arg: any) => window.once(name, arg),
+                            emit:   (arg: any) => window.emit(name, arg),
+                        }
+                    ),
                     get:   (_, command: keyof __EventObj__<any>) => {
                         switch (command) {
                             case "listen":

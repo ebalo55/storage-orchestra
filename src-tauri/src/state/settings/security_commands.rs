@@ -11,6 +11,7 @@ use serde_json::Value;
 use specta::{Type, specta};
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::Duration;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, State, command};
 use tokio::sync::{RwLock, RwLockWriteGuard};
@@ -98,13 +99,9 @@ pub async fn update_password(
 
     let new_psw_visit_clone = new_password.clone();
 
-    let writable_state_clone = async_state.clone();
-    // this will stay locked for a while
-    let writable_state = writable_state_clone.write().await;
-
     // update the password for all the crypt data instances
     visit_states_cryptdata_instances(
-        writable_state,
+        async_state.clone(),
         Box::new(move |key: String, crypt_data: Arc<RwLock<CryptData>>| {
             let current_password = current_password.clone();
             let new_password = new_psw_visit_clone.clone();
@@ -113,6 +110,8 @@ pub async fn update_password(
             let ev = ev_visit_clone.clone();
 
             Box::pin(async move {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+
                 let readable_crypt_data = crypt_data.read().await;
                 let modes = readable_crypt_data.get_modes();
                 let related_keys = if !readable_crypt_data.related_keys.is_empty() {
@@ -169,6 +168,8 @@ pub async fn update_password(
 
     // update the delayed items
     for crypt_data in delayed_items.iter() {
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
         let mut readable_crypt_data = crypt_data.read().await;
 
         let modes = readable_crypt_data.get_modes();
@@ -205,8 +206,8 @@ pub async fn update_password(
     // Update the static password in memory
     let mut static_psw = PASSWORD.get().unwrap().write().await;
     *static_psw = new_password;
+    drop(static_psw);
 
-    // TODO: check why this is not save on disk
     save(
         app,
         Arc::into_inner(async_state).ok_or("Cannot take state ownership")?,

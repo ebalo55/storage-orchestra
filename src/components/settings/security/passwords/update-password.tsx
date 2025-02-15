@@ -1,28 +1,12 @@
-import {
-    Button,
-    PasswordInput,
-    Stack,
-    Text,
-} from "@mantine/core";
-import {
-    useForm,
-    UseFormReturnType,
-} from "@mantine/form";
-import {Channel} from "@tauri-apps/api/core";
-import {yupResolver} from "mantine-form-yup-resolver";
-import {
-    Dispatch,
-    FC,
-    SetStateAction,
-    useRef,
-    useState,
-} from "react";
+import { Button, PasswordInput, Progress, Stack, Text, Title } from "@mantine/core";
+import { useForm, UseFormReturnType } from "@mantine/form";
+import { modals } from "@mantine/modals";
+import { Channel } from "@tauri-apps/api/core";
+import { yupResolver } from "mantine-form-yup-resolver";
+import { Dispatch, FC, SetStateAction, useRef, useState } from "react";
 import * as yup from "yup";
-import {
-    commands,
-    PasswordUpdateEvent,
-} from "../../../../tauri-bindings.ts";
-import {SettingRow} from "../../setting-row.tsx";
+import { commands, PasswordUpdateEvent } from "../../../../tauri-bindings.ts";
+import { SettingRow } from "../../setting-row.tsx";
 
 type FormValues = {
     current_password: string
@@ -39,24 +23,77 @@ async function handleSubmit(
     setIsUpdatingPassword(true);
     console.log("Updating password");
 
+    const modal = modals.open({
+        title:               <Title order={ 3 }>Updating password</Title>,
+        withCloseButton:     false,
+        closeOnClickOutside: false,
+        children:            (
+                                 <Stack p={ "lg" }>
+                                     <Text>
+                                         Password update in progress, please wait until the process is completed.
+                                     </Text>
+                                     <Stack gap={ 0 }>
+                                         <Progress value={ 0 } animated/>
+                                         <Text size={ "xs" } c={ "dimmed" } ml={ "auto" }>
+                                             0.00% completed
+                                         </Text>
+                                     </Stack>
+                                 </Stack>
+                             ),
+    });
+
     let steps = 0;
     let completed_steps = 0;
 
     const channel = new Channel<PasswordUpdateEvent>();
     channel.onmessage = (event) => {
-        console.log(event);
         if (event.event === "completed") {
-            console.log("Password updated");
             setIsUpdatingPassword(false);
             form.reset();
+
+            modals.updateModal({
+                modalId:  modal,
+                children: (
+                              <Stack gap={ 0 } p={ "lg" }>
+                                  <Text>
+                                      Password update completed successfully.
+                                  </Text>
+                                  <Text>
+                                      This modal will close automatically in 5 seconds.
+                                  </Text>
+                              </Stack>
+                          ),
+            });
+
+            setTimeout(() => {
+                modals.close(modal);
+            }, 5000);
         }
         else if (event.event === "step_completed") {
             completed_steps++;
-            console.log(`Step ${completed_steps}/${steps} completed`);
+
+            const percent = (
+                                completed_steps / steps
+                            ) * 100;
+            modals.updateModal({
+                modalId:  modal,
+                children: (
+                              <Stack p={ "lg" }>
+                                  <Text>
+                                      Password update in progress, please wait until the process is completed.
+                                  </Text>
+                                  <Stack gap={ 0 }>
+                                      <Progress value={ percent } animated/>
+                                      <Text size={ "xs" } c={ "dimmed" } ml={ "auto" }>
+                                          { percent.toFixed(2) }% completed
+                                      </Text>
+                                  </Stack>
+                              </Stack>
+                          ),
+            });
         }
         else {
             steps = event.data.steps;
-            console.log(`Password update initialized with ${steps} steps`);
         }
     };
 

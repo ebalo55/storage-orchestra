@@ -1,7 +1,8 @@
-import "@mantine/core/styles.css";
 import "./assets/tailwind.css";
 import { localStorageColorSchemeManager, MantineProvider } from "@mantine/core";
+import { ModalsProvider } from "@mantine/modals";
 import { BaseDirectory, exists } from "@tauri-apps/plugin-fs";
+import { ContextMenuProvider } from "mantine-contextmenu";
 import { useEffect } from "react";
 import { NavigateFunction, Outlet, useNavigate } from "react-router";
 import { useSimpleThemeContext } from "./hooks/use-theme.tsx";
@@ -21,7 +22,11 @@ export default function Layout() {
 
     return (
         <MantineProvider theme={ theme } colorSchemeManager={ colorSchemeManager } defaultColorScheme={ "light" }>
-            <Outlet/>
+            <ContextMenuProvider shadow={ "lg" }>
+                <ModalsProvider>
+                    <Outlet/>
+                </ModalsProvider>
+            </ContextMenuProvider>
         </MantineProvider>
     );
 }
