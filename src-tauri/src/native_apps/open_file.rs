@@ -1,4 +1,5 @@
 use std::process::{Child, Command};
+use tracing::info;
 
 /// Open a file with the default application.
 ///
@@ -10,6 +11,8 @@ use std::process::{Child, Command};
 ///
 /// A `Result` containing the `Child` process if the file was opened successfully, or an error message if the file could not be opened.
 pub fn open_file(file_path: &str) -> Result<Child, String> {
+    info!("Opening file: {}", file_path);
+
     #[cfg(target_os = "windows")]
     let child = Command::new("explorer").arg(file_path).spawn();
 

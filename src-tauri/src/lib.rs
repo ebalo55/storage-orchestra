@@ -63,6 +63,7 @@ fn setup_tracing() -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> Result<(), String> {
+    sysinfo::set_open_files_limit(0);
     setup_tracing()?;
 
     let mut builder = Builder::<tauri::Wry>::new()
@@ -81,6 +82,7 @@ pub fn run() -> Result<(), String> {
             crypt::crypt_data_get_raw_data_as_string,
             crypt::crypt_data_get_raw_data,
             crypt::make_crypt_data_from_qualified_string,
+            native_apps::watch_native_open,
         ])
         .events(collect_events![])
         .constant("STATE_FILE", STATE_FILE);
