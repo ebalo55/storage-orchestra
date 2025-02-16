@@ -1,7 +1,7 @@
 import { Button, Card, Center, Image, PasswordInput, Stack, Text, Title } from "@mantine/core";
 import { useForm, UseFormReturnType } from "@mantine/form";
 import { yupResolver } from "mantine-form-yup-resolver";
-import { useEffect } from "react";
+import { createRef, useEffect } from "react";
 import { NavigateFunction, useNavigate } from "react-router";
 import * as yup from "yup";
 import { ExtendedThemeContextType, useThemeContext } from "./hooks/use-theme.tsx";
@@ -41,6 +41,7 @@ async function login(
 export default function Login() {
     const theme_ctx = useThemeContext();
     const navigate = useNavigate();
+    const ref = createRef<HTMLInputElement>();
 
     const login_form = useForm({
         initialValues: {
@@ -55,6 +56,10 @@ export default function Login() {
         ensureIsAuthenticated(navigate, theme_ctx);
     }, []);
 
+    useEffect(() => {
+        ref.current?.focus();
+    }, []);
+
     return (
         <Center h={ "100svh" } className={ "bg-indigo-200" }>
             <Card shadow={ "xs" } padding={ "xl" } className={ "bg-white" } miw={ "32rem" } maw={ "32rem" }>
@@ -65,7 +70,8 @@ export default function Login() {
                             <Title className={ "text-center" }>Login</Title>
                             <Text className={ "text-center !font-semibold" } c={"dark.4"}>Sign in to your account</Text>
                         </div>
-                        <PasswordInput placeholder={ "Password" } {...login_form.getInputProps("password")}/>
+                        <PasswordInput placeholder={ "Password" } { ...login_form.getInputProps("password") }
+                                       ref={ ref }/>
                         <Button type={"submit"} fullWidth>Sign in</Button>
                     </Stack>
                 </form>
