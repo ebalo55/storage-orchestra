@@ -1,9 +1,5 @@
 import "@mantine/carousel/styles.css";
-import {
-    Carousel,
-    CarouselSlide,
-    Embla,
-} from "@mantine/carousel";
+import { Carousel, CarouselSlide, Embla } from "@mantine/carousel";
 import {
     ActionIcon,
     Button,
@@ -20,38 +16,19 @@ import {
     ThemeIcon,
     Title,
 } from "@mantine/core";
-import {
-    useForm,
-    UseFormReturnType,
-} from "@mantine/form";
-import {
-    IconArrowRightDashed,
-    IconBrandGoogleDrive,
-    IconCloud,
-    IconTrash,
-} from "@tabler/icons-react";
-import {EmblaCarouselType} from "embla-carousel-react";
-import {yupResolver} from "mantine-form-yup-resolver";
-import {
-    all,
-    title,
-} from "radash";
-import {
-    Dispatch,
-    SetStateAction,
-    useEffect,
-    useState,
-} from "react";
-import {
-    NavigateFunction,
-    useNavigate,
-} from "react-router";
+import { useForm, UseFormReturnType } from "@mantine/form";
+import { IconArrowRightDashed, IconBrandGoogleDrive, IconCloud, IconTrash } from "@tabler/icons-react";
+import { EmblaCarouselType } from "embla-carousel-react";
+import { yupResolver } from "mantine-form-yup-resolver";
+import { all, title } from "radash";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { NavigateFunction, useNavigate } from "react-router";
 import * as yup from "yup";
 import classes from "./assets/carousel.module.css";
-import {GoogleDriveSignIn} from "./components/google-drive-sign-in.tsx";
-import {ProviderData} from "./tauri-bindings.ts";
-import {GoogleOAuth} from "./utility/google-auth.ts";
-import {State} from "./utility/state.ts";
+import { GoogleDriveSignIn } from "./components/google-drive-sign-in.tsx";
+import { GoogleProvider } from "./providers/google-provider.ts";
+import { ProviderData } from "./tauri-bindings.ts";
+import { State } from "./utility/state.ts";
 
 type StrongholdFormValues = {
     password: string
@@ -105,7 +82,7 @@ async function setupState(
  */
 function updateProviders(setProviders: Dispatch<SetStateAction<ProviderData[]>>) {
     return setInterval(async () => {
-        const google = await GoogleOAuth.init();
+        const google = await GoogleProvider.init();
 
         setProviders((providers) => {
             const non_google_providers = providers.filter(v => v.provider !== "google");
@@ -132,7 +109,7 @@ async function dropProvider(provider: ProviderData): Promise<void> {
         const new_providers = providers.providers.filter((p: ProviderData) => p.owner !== provider.owner);
         await all([
             state.insert({providers: new_providers}),
-            GoogleOAuth.init().then((google) => google.dropProvider(provider.owner)),
+            GoogleProvider.init().then((google) => google.dropProvider(provider.owner)),
         ]);
 
         console.log("Provider dropped");

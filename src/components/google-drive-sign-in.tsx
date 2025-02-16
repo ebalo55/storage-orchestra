@@ -1,11 +1,11 @@
 import { Button } from "@mantine/core";
 import { IconBrandGoogleDrive } from "@tabler/icons-react";
 import { Dispatch, FC, SetStateAction, useState } from "react";
-import { GoogleOAuth } from "../utility/google-auth.ts";
+import { GoogleProvider } from "../providers/google-provider.ts";
 
 async function signIn(setAuthenticating: Dispatch<SetStateAction<boolean>>) {
     setAuthenticating(true);
-    const googleOAuth = await GoogleOAuth.init();
+    const googleOAuth = await GoogleProvider.init();
     await googleOAuth.start();
 
     const interval = setInterval(() => {

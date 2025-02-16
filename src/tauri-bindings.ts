@@ -277,7 +277,34 @@ async makeCryptDataFromQualifiedString(data: string) : Promise<Result<CryptData,
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
-}
+},
+    /**
+     * Watch a file for the default application to open it and return its content when the application
+     * closes
+     *
+     * # Arguments
+     *
+     * * `app` - The Tauri app handle.
+     * * `file_path` - The path to the file to watch.
+     *
+     * # Returns
+     *
+     * A `Result` containing the content of the file (at closing time) if the file was opened
+     * successfully, or an error message if the file could not be opened.
+     */
+    async watchNativeOpen(filePath: string): Promise<Result<number[], string>> {
+        try {
+            return {status: "ok", data: await TAURI_INVOKE("watch_native_open", {filePath})};
+        }
+        catch (e) {
+            if (e instanceof Error) {
+                throw e;
+            }
+            else {
+                return {status: "error", error: e as any};
+            }
+        }
+    }
 }
 
 /** user-defined events **/
@@ -509,10 +536,7 @@ secret: CryptData | null }
 
 /** tauri-specta globals **/
 
-import {
-	invoke as TAURI_INVOKE,
-	Channel as TAURI_CHANNEL,
-} from "@tauri-apps/api/core";
+import { Channel as TAURI_CHANNEL, invoke as TAURI_INVOKE } from "@tauri-apps/api/core";
 import * as TAURI_API_EVENT from "@tauri-apps/api/event";
 import { type WebviewWindow as __WebviewWindow__ } from "@tauri-apps/api/webviewWindow";
 

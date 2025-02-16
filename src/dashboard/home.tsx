@@ -18,10 +18,10 @@ import { Link } from "react-router";
 import { PageHeader } from "../components/page-header.tsx";
 import { ProviderIcon } from "../components/provider-icon.tsx";
 import { useProviders } from "../hooks/use-providers.ts";
+import { GoogleProvider } from "../providers/google-provider.ts";
 import { commands, ProviderData, StorageProvider } from "../tauri-bindings.ts";
 import { dayjs } from "../utility/dayjs.ts";
 import { formatByteSize } from "../utility/format-bytesize.ts";
-import { GoogleOAuth } from "../utility/google-auth.ts";
 
 interface ProviderStats {
     /**
@@ -102,7 +102,7 @@ async function fetchGoogleStats(provider: ProviderData): Promise<ProviderStats |
     const now = dayjs.utc().unix();
 
     if (provider.expiry <= now) {
-        const google_oauth = await GoogleOAuth.init();
+        const google_oauth = await GoogleProvider.init();
         const updated_provider = await google_oauth.refresh(provider);
         if (updated_provider) {
             console.log("Successfully refreshed Google OAuth token for provider", provider.owner);

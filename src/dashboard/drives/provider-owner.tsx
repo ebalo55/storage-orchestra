@@ -1,4 +1,4 @@
-import {Card, Center, Grid, GridCol, Group, Loader, Text} from "@mantine/core";
+import { Card, Center, Grid, GridCol, Group, Loader, Text } from "@mantine/core";
 import {
     IconArrowsMove,
     IconBinary,
@@ -21,17 +21,16 @@ import {
     IconTrash,
     IconUserPlus,
 } from "@tabler/icons-react";
-import {useContextMenu} from "mantine-contextmenu";
-import {title} from "radash";
-import {Dispatch, ExoticComponent, FC, SetStateAction, useEffect, useState} from "react";
-import {useParams} from "react-router";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { useContextMenu } from "mantine-contextmenu";
+import { title } from "radash";
+import { Dispatch, ExoticComponent, FC, SetStateAction, useEffect, useState } from "react";
+import { useParams } from "react-router";
 import classes from "../../assets/context-menu.module.css";
-import {PageHeader} from "../../components/page-header.tsx";
-import {Settings, StorageProvider} from "../../tauri-bindings.ts";
-import {GoogleFile, GoogleOAuth} from "../../utility/google-auth.ts";
-import {openUrl} from '@tauri-apps/plugin-opener';
-import {useSettings} from "../../hooks/use-settings.ts";
-import { open } from '@tauri-apps/plugin-shell';
+import { PageHeader } from "../../components/page-header.tsx";
+import { useSettings } from "../../hooks/use-settings.ts";
+import { GoogleFile, GoogleProvider } from "../../providers/google-provider.ts";
+import { commands, Settings, StorageProvider } from "../../tauri-bindings.ts";
 
 
 const FOLDER_LIKE_MIMES = [
@@ -69,12 +68,12 @@ const MAPPED_MIMES: {
  * @returns {Promise<void>}
  */
 async function loadGoogleFiles(owner: string, setObjects: Dispatch<SetStateAction<GoogleFile[]>>) {
-    const google = await GoogleOAuth.init();
+    const google = await GoogleProvider.init();
     let files = await google.listFiles(owner);
 
     setObjects(files.files);
     while (files.nextPageToken) {
-        files = await google.listFiles(owner, files.nextPageToken);
+        files = await google.listFiles(owner, "root", files.nextPageToken);
         setObjects((prev) => prev.concat(files.files));
     }
 }
@@ -142,14 +141,20 @@ async function openWithNativeApp(file: GoogleFile, provider: StorageProvider, ow
         case "google":
             switch (file.mimeType) {
                 case "application/vnd.google-apps.document":
-                    const google = await GoogleOAuth.init();
+                    const google = await GoogleProvider.init();
                     const download_path = await google.downloadFile(owner, file)
                     console.log(download_path);
                     if (!download_path) {
                         throw new Error("Failed to download file");
                     }
-                    await open(download_path);
-                    // TODO: start watching for file changes, and upload them back to the cloud
+                    const updated_content = await commands.watchNativeOpen(download_path);
+
+                    if (updated_content.status === "error") {
+                        throw new Error(updated_content.error);
+                    }
+
+                    // TODO: Update the file with the new content
+
                     break;
             }
             break;
