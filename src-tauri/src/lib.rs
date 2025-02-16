@@ -1,4 +1,5 @@
 mod crypt;
+mod native_apps;
 mod state;
 mod utility;
 
@@ -96,6 +97,8 @@ pub fn run() -> Result<(), String> {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_upload::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_fs::init())

@@ -1,11 +1,16 @@
-import { cancel, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
-import { fetch } from "@tauri-apps/plugin-http";
-import { sendNotification } from "@tauri-apps/plugin-notification";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import {cancel, onUrl, start} from "@fabianlars/tauri-plugin-oauth";
+import {fetch} from "@tauri-apps/plugin-http";
+import {sendNotification} from "@tauri-apps/plugin-notification";
+import {openUrl} from "@tauri-apps/plugin-opener";
 import querystring from "query-string";
-import { commands, ProviderData } from "../tauri-bindings.ts";
-import { dayjs } from "./dayjs.ts";
-import { State, StateMarker } from "./state.ts";
+import {commands, ProviderData} from "../tauri-bindings.ts";
+import {dayjs} from "./dayjs.ts";
+import {State, StateMarker} from "./state.ts";
+import {download} from "@tauri-apps/plugin-upload";
+import {BaseDirectory} from "@tauri-apps/plugin-fs";
+import * as path from '@tauri-apps/api/path';
+import {formatByteSize} from "./format-bytesize.ts";
+
 
 export interface GoogleFileListing {
     nextPageToken?: string;
@@ -19,10 +24,28 @@ export interface GoogleFile {
     mimeType: string;
 }
 
+interface GoogleDriveDownloadResponse {
+    name: string;
+    metadata: {
+        "@type": string;
+    };
+    done: boolean;
+    response?: {
+        "@type": string;
+        downloadUri: string;
+        partialDownloadAllowed: boolean;
+    };
+    error?: {
+        code: number;
+        message: string;
+    };
+}
+
+
 const ERROR_LISTING: GoogleFileListing = {
-    nextPageToken:    "",
+    nextPageToken: "",
     incompleteSearch: false,
-    files:            [],
+    files: [],
 };
 
 let instance: GoogleOAuth | undefined;
@@ -30,7 +53,8 @@ let instance: GoogleOAuth | undefined;
 class GoogleOAuth {
     private _port: number = 0;
 
-    private constructor(private _providers: ProviderData[]) {}
+    private constructor(private _providers: ProviderData[]) {
+    }
 
     /**
      * Get GoogleOAuth providers
@@ -67,6 +91,12 @@ class GoogleOAuth {
         throw new Error("No providers found in stronghold");
     }
 
+    /**
+     * List files in a Google Drive folder
+     * @param owner - The owner of the provider to use
+     * @param page - The page token to use
+     * @param folder - The folder to list files from
+     */
     public async listFiles(owner: string, page?: string, folder: string = "root"): Promise<GoogleFileListing> {
         let provider = this._providers.find((provider) => provider.owner === owner);
         if (!provider) {
@@ -86,25 +116,118 @@ class GoogleOAuth {
         const url = "https://www.googleapis.com/drive/v3/files?";
         const response = await fetch(url + querystring.stringify({
             includeItemsFromAllDrives: true,
-            supportsAllDrives:         true,
-            orderBy:                   "folder,name_natural",
-            pageSize:                  50,
-            pageToken:                 page,
-            corpora:                   "user",
-            q:                         `trashed = false and '${ folder }' in parents`,
+            supportsAllDrives: true,
+            orderBy: "folder,name_natural",
+            pageSize: 50,
+            pageToken: page,
+            corpora: "user",
+            q: `trashed = false and '${folder}' in parents`,
         }), {
             headers: {
-                "Authorization": `Bearer ${ access_token }`,
+                "Authorization": `Bearer ${access_token}`,
             },
         });
 
         if (response.ok) {
             const result = await response.json();
             return result as GoogleFileListing;
-        }
-        else {
+        } else {
             console.error("Error fetching Google Drive files:", response.statusText);
             return ERROR_LISTING;
+        }
+    }
+
+    public async downloadFile(owner: string, file: GoogleFile) {
+        let provider = this._providers.find((provider) => provider.owner === owner);
+        if (!provider) {
+            return;
+        }
+
+        provider = await this.refreshProviderIfStale(provider);
+        if (!provider) {
+            return;
+        }
+
+        const access_token = await this.unpackAccessToken(provider);
+        if (!access_token) {
+            return;
+        }
+
+        const url = `https://www.googleapis.com/drive/v3/files/${file.id}/download`;
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${access_token}`,
+            },
+        });
+
+        if (response.ok) {
+            let operation: GoogleDriveDownloadResponse = await response.json();
+            const operation_url = `https://www.googleapis.com/drive/v3/operations/${operation.name}`;
+            const backoff = 1.5;
+            const max_backoff = 60;
+            const base_delay = 2;
+            let calls = 0;
+
+            while (!operation.done) {
+                calls++;
+                const delay = Math.min(base_delay * 1000 * calls * backoff, max_backoff * 1000);
+                console.log(`Waiting ${delay}ms before checking Google Drive operation status...`);
+
+                // Wait before checking again
+                await new Promise((resolve) => setTimeout(resolve, delay));
+                console.log("Checking Google Drive operation status...");
+
+                const op_refresh_response = await fetch(operation_url, {
+                    headers: {
+                        "Authorization": `Bearer ${access_token}`,
+                    },
+                });
+
+                if (op_refresh_response.ok) {
+                    operation = await op_refresh_response.json();
+                } else {
+                    console.error("Error fetching Google Drive operation:", op_refresh_response.statusText);
+                }
+            }
+
+            if (operation.error) {
+                console.error("Error downloading Google Drive file:", operation.error.message);
+                return;
+            }
+
+            let extension = "";
+            switch (file.mimeType) {
+                case "application/vnd.google-apps.document":
+                    extension = ".docx";
+                    break;
+                case "application/vnd.google-apps.spreadsheet":
+                    extension = ".xlsx";
+                    break;
+                case "application/vnd.google-apps.presentation":
+                    extension = ".pptx";
+                    break;
+                case "application/vnd.google-apps.drawing":
+                    extension = ".png";
+                    break;
+                default:
+                    extension = "";
+            }
+            const download_path = await path.join(await path.tempDir(), file.name.concat(extension));
+
+            const headers = new Map<string, string>();
+            headers.set("Authorization", `Bearer ${access_token}`);
+            await download(
+                operation.response!.downloadUri,
+                download_path,
+                ({ total, progressTotal }) =>
+                    console.log(`Downloaded ${formatByteSize(BigInt(progressTotal))} of ${total === 0 ? "Unknown" : total} bytes`), // a callback that will be called with the download progress
+                headers
+            );
+
+            return download_path;
+        } else {
+            console.error("Error fetching Google Drive file:", response.statusText);
         }
     }
 
@@ -123,7 +246,7 @@ class GoogleOAuth {
     public async start() {
         try {
             this._port = await start();
-            console.log(`GoogleOAuth server started on port ${ this._port }`);
+            console.log(`GoogleOAuth server started on port ${this._port}`);
 
             // Set up listeners for OAuth results
             await onUrl((url) => this.receive(url));
@@ -131,13 +254,12 @@ class GoogleOAuth {
             const url = "https://accounts.google.com/o/oauth2/v2/auth?";
 
             await openUrl(url + querystring.stringify({
-                scope:         "https://www.googleapis.com/auth/drive email",
+                scope: "https://www.googleapis.com/auth/drive email",
                 response_type: "code",
-                redirect_uri:  `http://127.0.0.1:${ this._port }`,
-                client_id:     "243418232258-pi0e0sa9g3ol72c212hg7k496g51k765.apps.googleusercontent.com",
+                redirect_uri: `http://127.0.0.1:${this._port}`,
+                client_id: "243418232258-pi0e0sa9g3ol72c212hg7k496g51k765.apps.googleusercontent.com",
             }));
-        }
-        catch (error) {
+        } catch (error) {
             console.error("Error starting GoogleOAuth server:", error);
             await this.stop();
         }
@@ -153,8 +275,7 @@ class GoogleOAuth {
         try {
             await cancel(port);
             console.log("GoogleOAuth server stopped");
-        }
-        catch (error) {
+        } catch (error) {
             console.error("Error stopping GoogleOAuth server:", error);
         }
     }
@@ -173,15 +294,15 @@ class GoogleOAuth {
         }
 
         const response = await fetch("https://oauth2.googleapis.com/token", {
-            method:  "POST",
+            method: "POST",
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
             },
-            body:    querystring.stringify({
+            body: querystring.stringify({
                 refresh_token: refresh_token.data,
-                client_id:     "243418232258-pi0e0sa9g3ol72c212hg7k496g51k765.apps.googleusercontent.com",
+                client_id: "243418232258-pi0e0sa9g3ol72c212hg7k496g51k765.apps.googleusercontent.com",
                 client_secret: "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",
-                grant_type:    "refresh_token",
+                grant_type: "refresh_token",
             }),
         });
 
@@ -200,11 +321,11 @@ class GoogleOAuth {
             }
 
             const new_data = {
-                access_token:  access_token.data,
+                access_token: access_token.data,
                 refresh_token: data.refresh_token,
                 expiry,
                 owner,
-                provider:      "google",
+                provider: "google",
             } as ProviderData;
 
             // Update record
@@ -214,8 +335,7 @@ class GoogleOAuth {
             await this.replaceAllGoogleProviders();
 
             return new_data;
-        }
-        else {
+        } else {
             console.error("Error refreshing OAuth token:", response.statusText);
         }
     }
@@ -234,8 +354,7 @@ class GoogleOAuth {
             if (updated_provider) {
                 console.log("Successfully refreshed Google OAuth token for provider", provider.owner);
                 return updated_provider;
-            }
-            else {
+            } else {
                 console.error("Failed to refresh Google OAuth token for provider", provider.owner);
                 return;
             }
@@ -273,7 +392,7 @@ class GoogleOAuth {
         if ("providers" in all_providers) {
             // Remove all non-google providers and add the new providers
             const non_google_providers = all_providers.providers.filter((provider) => provider.provider !== "google");
-            await storage.insert({providers: [ ...non_google_providers, ...this._providers ]});
+            await storage.insert({providers: [...non_google_providers, ...this._providers]});
         }
     }
 
@@ -293,7 +412,7 @@ class GoogleOAuth {
 
         sendNotification({
             title: "Error during Google Drive connection",
-            body:  error_description,
+            body: error_description,
         });
     }
 
@@ -305,16 +424,16 @@ class GoogleOAuth {
      */
     private async handleOAuthSuccess(code: string) {
         const response = await fetch("https://oauth2.googleapis.com/token", {
-            method:  "POST",
+            method: "POST",
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
             },
-            body:    querystring.stringify({
+            body: querystring.stringify({
                 code,
-                client_id:     "243418232258-pi0e0sa9g3ol72c212hg7k496g51k765.apps.googleusercontent.com",
+                client_id: "243418232258-pi0e0sa9g3ol72c212hg7k496g51k765.apps.googleusercontent.com",
                 client_secret: "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",
-                redirect_uri:  `http://127.0.0.1:${ this._port }`,
-                grant_type:    "authorization_code",
+                redirect_uri: `http://127.0.0.1:${this._port}`,
+                grant_type: "authorization_code",
             }),
         });
 
@@ -340,19 +459,18 @@ class GoogleOAuth {
             }
 
             const data = {
-                access_token:  access_token.data,
+                access_token: access_token.data,
                 refresh_token: refresh_token.data,
                 expiry,
                 owner,
-                provider:      "google",
+                provider: "google",
             } as ProviderData;
 
             // Add new record
             this._providers.push(data);
 
             await this.replaceAllGoogleProviders();
-        }
-        else {
+        } else {
             console.error("Error fetching OAuth token:", response.statusText);
         }
     }
@@ -383,4 +501,4 @@ class GoogleOAuth {
     }
 }
 
-export { GoogleOAuth };
+export {GoogleOAuth};
