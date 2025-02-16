@@ -85,23 +85,6 @@ impl DerivedKey {
         let password = String::from_utf8_lossy(password.as_slice()).to_string();
         DerivedKey::new(password.as_str(), salt, key_length)
     }
-
-    /// Restores the derived key from a password.
-    ///
-    /// # Arguments
-    ///
-    /// * `password` - The password to restore the key from.
-    /// * `key_length` - The length of the key to derive.
-    ///
-    /// # Returns
-    ///
-    /// The restored derived key.
-    pub fn restore(&mut self, password: &str, key_length: u8) -> Result<(), String> {
-        let instance = DerivedKey::new(password, Some(self.salt.as_slice()), key_length)?;
-        self.key = instance.key;
-
-        Ok(())
-    }
 }
 
 #[cfg(test)]
