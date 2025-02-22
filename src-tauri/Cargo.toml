@@ -30,14 +30,14 @@ serde_json = "1"
 tauri-plugin-notification = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-oauth = "2"
-tauri-plugin-http = { version = "2", features = ["json"] }
+tauri-plugin-http = { version = "2", features = ["json", "unsafe-headers", "rustls-tls-native-roots"] }
 tauri-plugin-store = "2"
 chacha20poly1305 = "0.10.1"
 sha3 = "0.10.8"
 hkdf = "0.12.4"
 rand = "0.9.0"
 base64ct = { version = "1.6.0", features = ["std"] }
-tokio = {version = "1.43.0", features = ["fs"] }
+tokio = { version = "1.43.0", features = ["full"] }
 key-as-enum = { path = "../libs/key-as-enum" }
 as-result-enum = { path = "../libs/as-result-enum" }
 as-inner-serializable = { path = "../libs/as-inner-serializable" }
@@ -53,4 +53,13 @@ hmac = "0.12.1"
 tauri-plugin-upload = "2"
 tauri-plugin-shell = "2"
 sysinfo = "0.33.1"
-
+windows = { version = "0.51", features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_System_SystemServices",
+    "Wdk_Foundation",
+    "Wdk_System_SystemInformation"
+] }
+windows-targets = "0.48.5"
+futures-util = "0.3.31"
+infer = "0.19.0"

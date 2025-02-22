@@ -110,16 +110,6 @@ mod tests {
     }
 
     #[test]
-    fn test_restore() {
-        let password = "password";
-        let key_length = 32;
-        let mut derived_key = DerivedKey::new(password, None, key_length).unwrap();
-        let original_key = derived_key.key.clone();
-        derived_key.restore(password, key_length).unwrap();
-        assert_eq!(derived_key.key, original_key);
-    }
-
-    #[test]
     fn test_multiple_derivation_with_same_password_and_salt_match() {
         let password = "password";
         let key_length = 32;

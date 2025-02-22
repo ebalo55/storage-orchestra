@@ -1,3 +1,5 @@
+#![feature(let_chains)]
+
 mod crypt;
 mod native_apps;
 mod state;

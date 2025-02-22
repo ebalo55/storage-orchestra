@@ -9,18 +9,9 @@
     "core:default",
     "opener:default",
     "notification:default",
-    "fs:default",
     "opener:allow-open-path",
     "oauth:allow-start",
     "oauth:allow-cancel",
-    {
-      "identifier": "fs:allow-exists",
-      "allow": [
-        {
-          "path": "$APPLOCALDATA/**"
-        }
-      ]
-    },
     {
       "identifier": "http:default",
       "allow": [
@@ -31,6 +22,35 @@
     },
     "store:default",
     "upload:default",
-    "shell:default"
+    "shell:default",
+    "fs:default",
+    "fs:allow-temp-read-recursive",
+    "fs:allow-temp-write-recursive",
+    "fs:allow-temp-meta-recursive",
+    "fs:scope-temp-recursive",
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [
+        {
+          "path": "$APPLOCALDATA/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-remove",
+      "allow": [
+        {
+          "path": "$TEMP/*"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-open",
+      "allow": [
+        {
+          "path": "$TEMP/*"
+        }
+      ]
+    }
   ]
 }
