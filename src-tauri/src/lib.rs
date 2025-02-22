@@ -85,6 +85,7 @@ pub fn run() -> Result<(), String> {
             crypt::crypt_data_get_raw_data,
             crypt::make_crypt_data_from_qualified_string,
             native_apps::watch_native_open,
+            native_apps::get_mime_from_path,
         ])
         .events(collect_events![])
         .constant("STATE_FILE", STATE_FILE);

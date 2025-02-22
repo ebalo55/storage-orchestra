@@ -289,12 +289,35 @@ async makeCryptDataFromQualifiedString(data: string) : Promise<Result<CryptData,
      *
      * # Returns
      *
-     * A `Result` containing the content of the file (at closing time) if the file was opened
-     * successfully, or an error message if the file could not be opened.
+     * A `Result` containing the file path, or an error message if the file could not be opened.
      */
-    async watchNativeOpen(filePath: string): Promise<Result<number[], string>> {
+    async watchNativeOpen(filePath: string): Promise<Result<string, string>> {
         try {
             return {status: "ok", data: await TAURI_INVOKE("watch_native_open", {filePath})};
+        }
+        catch (e) {
+            if (e instanceof Error) {
+                throw e;
+            }
+            else {
+                return {status: "error", error: e as any};
+            }
+        }
+    },
+    /**
+     * Get the mimetype of a file from its path
+     *
+     * # Arguments
+     *
+     * * `path` - The path to the file to get the mime type of
+     *
+     * # Returns
+     *
+     * A `Result` containing the mime type of the file, or an error message if the mime type could not be found
+     */
+    async getMimeFromPath(path: string): Promise<Result<Mime, string>> {
+        try {
+            return {status: "ok", data: await TAURI_INVOKE("get_mime_from_path", {path})};
         }
         catch (e) {
             if (e instanceof Error) {
@@ -425,6 +448,16 @@ default_to_web_editor: boolean;
  * use your files.
  */
 compress_files: Partial<{ [key in StorageProvider]: boolean }> }
+export type Mime = {
+    /**
+     * The MIME type of the file
+     */
+    mime: string;
+    /**
+     * The file extension associated with the MIME type
+     */
+    extension: string
+}
 export type PasswordUpdateEvent = { event: "initialized"; data: { steps: number } } | { event: "step_completed" } | { event: "completed" }
 /**
  * The data of a storage provider

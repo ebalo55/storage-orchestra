@@ -18,7 +18,7 @@ import { Link } from "react-router";
 import { PageHeader } from "../components/page-header.tsx";
 import { ProviderIcon } from "../components/provider-icon.tsx";
 import { useProviders } from "../hooks/use-providers.ts";
-import { GoogleProvider } from "../providers/google-provider.ts";
+import { GoogleProvider } from "../providers/google-provider.tsx";
 import { commands, ProviderData, StorageProvider } from "../tauri-bindings.ts";
 import { dayjs } from "../utility/dayjs.ts";
 import { formatByteSize } from "../utility/format-bytesize.ts";

@@ -2,6 +2,7 @@ import { ProviderData, StorageProvider } from "../tauri-bindings.ts";
 import { State } from "../utility/state.ts";
 import { DriveFile } from "./drive-file.ts";
 import { OAuthProvider } from "./oauth-provider.ts";
+import { TrackableModalInfo } from "./trackable-modal-info.ts";
 
 export abstract class Provider extends OAuthProvider {
     protected static _instance?: Provider;
@@ -38,9 +39,14 @@ export abstract class Provider extends OAuthProvider {
      * Download a file from a drive and returns its storage path on disk
      * @param {string} owner - The owner of the provider to use
      * @param {DriveFile} file - The file to download
+     * @param {TrackableModalInfo} modal - The modal id to use for progress tracking
      * @returns {Promise<string | undefined>}
      */
-    public abstract downloadFile(owner: string, file: DriveFile): Promise<string | undefined>;
+    public abstract downloadFile(
+        owner: string,
+        file: DriveFile,
+        modal: TrackableModalInfo,
+    ): Promise<string | undefined>;
 
     /**
      * List files in a drive folder

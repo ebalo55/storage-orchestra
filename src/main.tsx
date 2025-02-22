@@ -12,6 +12,7 @@ import Layout from "./layout.tsx";
 import Login from "./login.tsx";
 import Onboard from "./onboard.tsx";
 import { requestNotificationPermission } from "./utility/notification.ts";
+import "./utility/dayjs.ts";
 
 requestNotificationPermission().then(() => console.log("Notification permission granted"));
 

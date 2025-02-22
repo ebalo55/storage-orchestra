@@ -26,7 +26,7 @@ import { NavigateFunction, useNavigate } from "react-router";
 import * as yup from "yup";
 import classes from "./assets/carousel.module.css";
 import { GoogleDriveSignIn } from "./components/google-drive-sign-in.tsx";
-import { GoogleProvider } from "./providers/google-provider.ts";
+import { GoogleProvider } from "./providers/google-provider.tsx";
 import { ProviderData } from "./tauri-bindings.ts";
 import { State } from "./utility/state.ts";
 

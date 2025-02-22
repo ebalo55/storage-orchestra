@@ -1,7 +1,7 @@
 import { Button } from "@mantine/core";
 import { IconBrandGoogleDrive } from "@tabler/icons-react";
 import { Dispatch, FC, SetStateAction, useState } from "react";
-import { GoogleProvider } from "../providers/google-provider.ts";
+import { GoogleProvider } from "../providers/google-provider.tsx";
 
 async function signIn(setAuthenticating: Dispatch<SetStateAction<boolean>>) {
     setAuthenticating(true);

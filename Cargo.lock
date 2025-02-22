@@ -1823,7 +1823,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "rustls",
-    "rustls-native-certs",
+ "rustls-native-certs",
  "rustls-pki-types",
  "tokio",
  "tokio-rustls",
@@ -2065,7 +2065,7 @@ version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a588916bfdfd92e71cacef98a63d9b1f0d74d6599980d11894290e7ddefffcf7"
 dependencies = [
-    "cfb",
+ "cfb",
 ]
 
 [[package]]
@@ -3603,7 +3603,7 @@ dependencies = [
  "pin-project-lite",
  "quinn",
  "rustls",
-    "rustls-native-certs",
+ "rustls-native-certs",
  "rustls-pemfile",
  "rustls-pki-types",
  "serde",
@@ -3693,10 +3693,10 @@ version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fcff2dd52b58a8d98a70243663a0d234c4e2b79235637849d15913394a247d3"
 dependencies = [
-    "openssl-probe",
-    "rustls-pki-types",
-    "schannel",
-    "security-framework",
+ "openssl-probe",
+ "rustls-pki-types",
+ "schannel",
+ "security-framework",
 ]
 
 [[package]]
@@ -3755,7 +3755,7 @@ version = "0.1.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f29ebaa345f945cec9fbbc532eb307f0fdad8161f281b6369539c8d84876b3d"
 dependencies = [
-    "windows-sys 0.59.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3797,11 +3797,11 @@ version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "271720403f46ca04f7ba6f55d438f8bd878d6b8ca0a1046e8228c4145bcbb316"
 dependencies = [
-    "bitflags 2.8.0",
-    "core-foundation 0.10.0",
-    "core-foundation-sys",
-    "libc",
-    "security-framework-sys",
+ "bitflags 2.8.0",
+ "core-foundation 0.10.0",
+ "core-foundation-sys",
+ "libc",
+ "security-framework-sys",
 ]
 
 [[package]]
@@ -3810,8 +3810,8 @@ version = "2.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49db231d56a190491cb4aeda9527f1ad45345af50b0851622a7adb8c03b01c32"
 dependencies = [
-    "core-foundation-sys",
-    "libc",
+ "core-foundation-sys",
+ "libc",
 ]
 
 [[package]]
@@ -4206,10 +4206,10 @@ dependencies = [
  "base64ct",
  "chacha20poly1305",
  "educe",
-    "futures-util",
+ "futures-util",
  "hkdf",
  "hmac",
-    "infer 0.19.0",
+ "infer 0.19.0",
  "key-as-enum",
  "once_cell",
  "rand 0.9.0",
@@ -4233,8 +4233,8 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
-    "windows 0.51.1",
-    "windows-targets 0.48.5",
+ "windows 0.51.1",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -4804,7 +4804,7 @@ dependencies = [
  "glob",
  "html5ever",
  "http",
-    "infer 0.16.0",
+ "infer 0.16.0",
  "json-patch",
  "kuchikiki",
  "log",
@@ -4996,9 +4996,9 @@ dependencies = [
  "bytes",
  "libc",
  "mio",
-    "parking_lot",
+ "parking_lot",
  "pin-project-lite",
-    "signal-hook-registry",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.52.0",
@@ -5685,8 +5685,8 @@ version = "0.51.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca229916c5ee38c2f2bc1e9d8f04df975b4bd93f9955dc69fabb5d91270045c9"
 dependencies = [
-    "windows-core 0.51.1",
-    "windows-targets 0.48.5",
+ "windows-core 0.51.1",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -5715,7 +5715,7 @@ version = "0.51.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1f8cf84f35d2db49a46868f947758c7a1138116f7fac3bc844f43ade1292e64"
 dependencies = [
-    "windows-targets 0.48.5",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
