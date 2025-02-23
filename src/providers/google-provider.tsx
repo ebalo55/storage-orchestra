@@ -1,17 +1,22 @@
-import { modals } from "@mantine/modals";
+import {modals} from "@mantine/modals";
 import * as path from "@tauri-apps/api/path";
-import { BaseDirectory, FileHandle, open, size } from "@tauri-apps/plugin-fs";
-import { fetch } from "@tauri-apps/plugin-http";
-import { download } from "@tauri-apps/plugin-upload";
+import {
+    BaseDirectory,
+    FileHandle,
+    open,
+    size,
+} from "@tauri-apps/plugin-fs";
+import {fetch} from "@tauri-apps/plugin-http";
+import {download} from "@tauri-apps/plugin-upload";
 import querystring from "query-string";
-import { OpenWithNativeAppModal } from "../components/open-with-native-app-modal.tsx";
-import { DriveFile } from "../interfaces/drive-file.ts";
-import { TrackableModalInfo } from "../interfaces/trackable-modal-info.ts";
-import { commands, ProviderData } from "../tauri-bindings.ts";
-import { formatByteSize } from "../utility/format-bytesize.ts";
-import { State } from "../utility/state.ts";
-import { FILE_UPLOAD_CHUNK_SIZE } from "./constants.ts";
-import { GoogleOAuth } from "./oauth/google.ts";
+import {OpenWithNativeAppModal} from "../components/open-with-native-app-modal.tsx";
+import {DriveFile} from "../interfaces/drive-file.ts";
+import {TrackableModalInfo} from "../interfaces/trackable-modal-info.ts";
+import {ProviderData} from "../tauri-bindings.ts";
+import {formatByteSize} from "../utility/format-bytesize.ts";
+import {State} from "../utility/state.ts";
+import {FILE_UPLOAD_CHUNK_SIZE} from "./constants.ts";
+import {GoogleOAuth} from "./oauth/google.ts";
 
 export interface GoogleFileListing {
     nextPageToken?: string;
@@ -265,13 +270,6 @@ class GoogleProvider extends GoogleOAuth {
         }
 
         const file_size = await size(file_path);
-        const mimetype = await commands.getMimeFromPath(file_path);
-        if (mimetype.status === "error") {
-            console.error("Error getting file MIME type:", mimetype.error);
-            return;
-        }
-
-        console.log({mimetype});
 
         // get the filename from the filepath in order to include the default extension
         const filename = file_path.replace(/\\/g, "/").split("/").pop()!;
@@ -282,12 +280,10 @@ class GoogleProvider extends GoogleOAuth {
             method:  "POST",
             headers: {
                 "Authorization": `Bearer ${ access_token }`,
-                // "X-Upload-Content-Type":   mimetype.data.mime,
                 "X-Upload-Content-Length": `${ file_size }`,
             },
             body:    JSON.stringify({
                 name: filename,
-                // mimeType: mimetype.data.mime,
             }),
         });
 

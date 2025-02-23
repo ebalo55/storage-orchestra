@@ -1,5 +1,14 @@
-import { Card, Center, Grid, GridCol, Group, Loader, Text, Title } from "@mantine/core";
-import { modals } from "@mantine/modals";
+import {
+    Card,
+    Center,
+    Grid,
+    GridCol,
+    Group,
+    Loader,
+    Text,
+    Title,
+} from "@mantine/core";
+import {modals} from "@mantine/modals";
 import {
     IconArrowsMove,
     IconBinary,
@@ -22,18 +31,35 @@ import {
     IconTrash,
     IconUserPlus,
 } from "@tabler/icons-react";
-import { BaseDirectory, remove } from "@tauri-apps/plugin-fs";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { useContextMenu } from "mantine-contextmenu";
-import { title } from "radash";
-import { Dispatch, ExoticComponent, FC, SetStateAction, useEffect, useState } from "react";
-import { useParams } from "react-router";
+import {
+    BaseDirectory,
+    remove,
+} from "@tauri-apps/plugin-fs";
+import {openUrl} from "@tauri-apps/plugin-opener";
+import {useContextMenu} from "mantine-contextmenu";
+import {title} from "radash";
+import {
+    Dispatch,
+    ExoticComponent,
+    FC,
+    SetStateAction,
+    useEffect,
+    useState,
+} from "react";
+import {useParams} from "react-router";
 import classes from "../../assets/context-menu.module.css";
-import { OpenWithNativeAppModal } from "../../components/open-with-native-app-modal.tsx";
-import { PageHeader } from "../../components/page-header.tsx";
-import { useSettings } from "../../hooks/use-settings.ts";
-import { GoogleFile, GoogleProvider } from "../../providers/google-provider.tsx";
-import { commands, Settings, StorageProvider } from "../../tauri-bindings.ts";
+import {OpenWithNativeAppModal} from "../../components/open-with-native-app-modal.tsx";
+import {PageHeader} from "../../components/page-header.tsx";
+import {useSettings} from "../../hooks/use-settings.ts";
+import {
+    GoogleFile,
+    GoogleProvider,
+} from "../../providers/google-provider.tsx";
+import {
+    commands,
+    Settings,
+    StorageProvider,
+} from "../../tauri-bindings.ts";
 
 
 const FOLDER_LIKE_MIMES = [
@@ -167,7 +193,7 @@ async function openWithNativeApp(file: GoogleFile, provider: StorageProvider, ow
                 throw new Error("Failed to download file");
             }
             // TODO: insert here a channel to keep the ui update, the channel must be provided to modal in order to
-            // update the progresses
+            //  update the progresses
             const updated_content = await commands.watchNativeOpen(download_path);
 
             if (updated_content.status === "error") {
