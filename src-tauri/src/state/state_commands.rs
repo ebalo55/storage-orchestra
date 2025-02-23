@@ -198,6 +198,9 @@ pub async fn get_from_state(
     match key {
         AppStateDeepKeys::Password => Err("Cannot get data from password".to_owned()),
         AppStateDeepKeys::DebouncedSaver => Err("Cannot get data from debounced saver".to_owned()),
+        AppStateDeepKeys::CancellationTokens => {
+            Err("Cannot get data from cancellation tokens".to_owned())
+        }
         AppStateDeepKeys::Providers => Ok(AppStateDeepResult::providers(
             readable_state.providers.clone(),
         )),
@@ -231,6 +234,9 @@ pub async fn remove_from_state(
         }
         AppStateDeepKeys::DebouncedSaver => {
             return Err("Cannot remove debounced saver from the state".to_owned());
+        }
+        AppStateDeepKeys::CancellationTokens => {
+            return Err("Cannot remove cancellation tokens from the state".to_owned());
         }
         AppStateDeepKeys::Providers => {
             writable_state.providers = Vec::new();
