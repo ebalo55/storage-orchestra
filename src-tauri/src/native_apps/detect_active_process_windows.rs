@@ -1,5 +1,6 @@
 #![allow(nonstandard_style)]
 
+use crate::native_apps::watch_process_event::WatchProcessEvent;
 use futures_util::{StreamExt, stream};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -11,6 +12,7 @@ use std::{
     slice, thread,
 };
 use sysinfo::{Pid, System};
+use tauri::ipc::Channel;
 use tokio::sync::Semaphore;
 use tracing::{debug, error, info, trace, warn};
 use windows::Win32::System::Threading::{
@@ -228,7 +230,10 @@ macro_rules! timeout {
 }
 
 /// Find the process that is handling the file.
-pub async fn find_process_handling_file(path: &str) -> Result<Pid, String> {
+pub async fn find_process_handling_file(
+    path: &str,
+    event: &Channel<WatchProcessEvent>,
+) -> Result<Pid, String> {
     let mut sys = System::new_all();
     sys.refresh_all();
 
@@ -249,6 +254,13 @@ pub async fn find_process_handling_file(path: &str) -> Result<Pid, String> {
         .map(|(pid, _)| pid.clone())
         .collect::<Vec<Pid>>();
 
+    event
+        .send(WatchProcessEvent::SearchingNativeProcess {
+            processes: Some(processes.len() as u32),
+        })
+        .map_err(|e| e.to_string())?;
+    let async_event = Arc::new(event);
+
     // profile the function at runtime
     let now = SystemTime::now();
 
@@ -260,15 +272,24 @@ pub async fn find_process_handling_file(path: &str) -> Result<Pid, String> {
             let semaphore = semaphore.clone();
             let handle = target_process_handle.clone();
             let path = path.clone();
+            let event = async_event.clone();
 
             async move {
                 // skip the system and the current processes
                 if pid.as_u32() == 0 || pid.as_u32() == handle.0 as u32 {
+                    event
+                        .send(WatchProcessEvent::ProcessAnalyzed)
+                        .map_err(|e| e.to_string())?;
                     return Err("Skipping system and current process".to_string());
                 }
 
                 let _permit = semaphore.acquire().await;
-                analyze_process_handles(pid.as_u32(), handle, path).await
+                let result = analyze_process_handles(pid.as_u32(), handle, path).await;
+                event
+                    .send(WatchProcessEvent::ProcessAnalyzed)
+                    .map_err(|e| e.to_string())?;
+
+                result
             }
         })
         .buffer_unordered(cores);
@@ -287,8 +308,14 @@ pub async fn find_process_handling_file(path: &str) -> Result<Pid, String> {
     });
 
     if let Some(pid) = pid {
+        event
+            .send(WatchProcessEvent::ProcessFound)
+            .map_err(|e| e.to_string())?;
         Ok(Pid::from_u32(pid))
     } else {
+        event
+            .send(WatchProcessEvent::ProcessNotFound)
+            .map_err(|e| e.to_string())?;
         Err("No process found".to_string())
     }
 }

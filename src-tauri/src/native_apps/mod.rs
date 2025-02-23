@@ -4,6 +4,6 @@ mod detect_active_process;
 #[cfg(target_os = "windows")]
 mod detect_active_process_windows;
 mod open_file;
-mod mimetype;
+mod watch_process_event;
 
 pub use commands::*;
