@@ -291,9 +291,9 @@ async makeCryptDataFromQualifiedString(data: string) : Promise<Result<CryptData,
      *
      * A `Result` containing the file path, or an error message if the file could not be opened.
      */
-    async watchNativeOpen(filePath: string): Promise<Result<string, string>> {
+    async watchNativeOpen(filePath: string, event: TAURI_CHANNEL<WatchProcessEvent>): Promise<Result<string, string>> {
         try {
-            return {status: "ok", data: await TAURI_INVOKE("watch_native_open", {filePath})};
+            return {status: "ok", data: await TAURI_INVOKE("watch_native_open", {filePath, event})};
         }
         catch (e) {
             if (e instanceof Error) {
@@ -305,19 +305,20 @@ async makeCryptDataFromQualifiedString(data: string) : Promise<Result<CryptData,
         }
     },
     /**
-     * Get the mimetype of a file from its path
+     * Cancel the watch_native_open command if it is running
      *
      * # Arguments
      *
-     * * `path` - The path to the file to get the mime type of
+     * * `state` - The Tauri app state.
      *
      * # Returns
      *
-     * A `Result` containing the mime type of the file, or an error message if the mime type could not be found
+     * A `Result` containing `Ok(())` if the command was cancelled, or an error message if the command
+     * was not running.
      */
-    async getMimeFromPath(path: string): Promise<Result<Mime, string>> {
+    async cancelWatchNativeOpen(): Promise<Result<null, string>> {
         try {
-            return {status: "ok", data: await TAURI_INVOKE("get_mime_from_path", {path})};
+            return {status: "ok", data: await TAURI_INVOKE("cancel_watch_native_open")};
         }
         catch (e) {
             if (e instanceof Error) {
@@ -340,7 +341,7 @@ export const STATE_FILE = "state.json" as const;
 
 /** user-defined types **/
 
-export type AppStateDeepKeys = "debounced_saver" | "password" | "providers" | "settings"
+export type AppStateDeepKeys = "debounced_saver" | "cancellation_tokens" | "password" | "providers" | "settings"
 export type AppStateDeepResult = 
 /**
  * The password to access the secure storage
@@ -448,16 +449,6 @@ default_to_web_editor: boolean;
  * use your files.
  */
 compress_files: Partial<{ [key in StorageProvider]: boolean }> }
-export type Mime = {
-    /**
-     * The MIME type of the file
-     */
-    mime: string;
-    /**
-     * The file extension associated with the MIME type
-     */
-    extension: string
-}
 export type PasswordUpdateEvent = { event: "initialized"; data: { steps: number } } | { event: "step_completed" } | { event: "completed" }
 /**
  * The data of a storage provider
@@ -566,6 +557,61 @@ enabled: boolean;
  * The two factor authentication secret
  */
 secret: CryptData | null }
+/**
+ * Events that can be sent by the watch process event channel.
+ */
+export type WatchProcessEvent =
+/**
+ * The process to watch will be started soon.
+ */
+    {
+        event: "firing_app"
+    } |
+    /**
+     * The process is waiting for the file to be opened.
+     */
+    {
+        event: "waiting_for_process_wakeup"
+    } |
+    /**
+     * The process has opened the file. We are now searching for the active process handling the file.
+     */
+    {
+        event: "searching_native_process";
+        data: {
+            processes: number | null
+        }
+    } |
+    /**
+     * A process has been analyzed
+     */
+    {
+        event: "process_analyzed"
+    } |
+    /**
+     * The process was not found
+     */
+    {
+        event: "process_not_found"
+    } |
+    /**
+     * The process has been found
+     */
+    {
+        event: "process_found"
+    } |
+    /**
+     * Waiting for the process to exit to proceed to auto-sync
+     */
+    {
+        event: "waiting_for_process_exit"
+    } |
+    /**
+     * The process has exited
+     */
+    {
+        event: "process_exited"
+    }
 
 /** tauri-specta globals **/
 

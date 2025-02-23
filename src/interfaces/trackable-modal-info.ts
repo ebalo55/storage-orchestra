@@ -1,3 +1,6 @@
+import { Channel } from "@tauri-apps/api/core";
+import { WatchProcessEvent } from "../tauri-bindings.ts";
+
 /**
  * Represents the information of a trackable modal.
  */
@@ -6,5 +9,10 @@ export interface TrackableModalInfo {
     progress: {
         total: number,
         current: number,
+    }
+    channel: Channel<WatchProcessEvent>
+    manual_override: {
+        path?: string,
+        upload: (path: string) => Promise<void>
     }
 }

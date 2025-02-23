@@ -1,22 +1,16 @@
-import {modals} from "@mantine/modals";
+import { modals } from "@mantine/modals";
 import * as path from "@tauri-apps/api/path";
-import {
-    BaseDirectory,
-    FileHandle,
-    open,
-    size,
-} from "@tauri-apps/plugin-fs";
-import {fetch} from "@tauri-apps/plugin-http";
-import {download} from "@tauri-apps/plugin-upload";
+import { BaseDirectory, FileHandle, open, size } from "@tauri-apps/plugin-fs";
+import { fetch } from "@tauri-apps/plugin-http";
+import { download } from "@tauri-apps/plugin-upload";
 import querystring from "query-string";
-import {OpenWithNativeAppModal} from "../components/open-with-native-app-modal.tsx";
-import {DriveFile} from "../interfaces/drive-file.ts";
-import {TrackableModalInfo} from "../interfaces/trackable-modal-info.ts";
-import {ProviderData} from "../tauri-bindings.ts";
-import {formatByteSize} from "../utility/format-bytesize.ts";
-import {State} from "../utility/state.ts";
-import {FILE_UPLOAD_CHUNK_SIZE} from "./constants.ts";
-import {GoogleOAuth} from "./oauth/google.ts";
+import { OpenWithNativeAppModal } from "../components/open-with-native-app-modal.tsx";
+import { FILE_UPLOAD_CHUNK_SIZE } from "../constants.ts";
+import { DriveFile } from "../interfaces/drive-file.ts";
+import { TrackableModalInfo } from "../interfaces/trackable-modal-info.ts";
+import { ProviderData } from "../tauri-bindings.ts";
+import { State } from "../utility/state.ts";
+import { GoogleOAuth } from "./oauth/google.ts";
 
 export interface GoogleFileListing {
     nextPageToken?: string;
@@ -240,10 +234,13 @@ class GoogleProvider extends GoogleOAuth {
                 operation.response!.downloadUri,
                 download_path,
                 ({progressTotal}) => {
+                    modal.manual_override.path = download_path;
                     modals.updateModal({
                         modalId:  modal.id,
-                        children: <OpenWithNativeAppModal download_progress={ progressTotal }
-                                                          download_size={ modal.progress.total }/>,
+                        children: <OpenWithNativeAppModal { ...modal } progress={ {
+                            total:   modal.progress.total,
+                            current: progressTotal,
+                        } }/>,
                     });
                 },
                 headers,
@@ -256,7 +253,20 @@ class GoogleProvider extends GoogleOAuth {
         }
     }
 
-    public async uploadFile(owner: string, file: DriveFile, file_path: string) {
+    /**
+     * Uploads a file to Google Drive.
+     * @param {string} owner - The owner of the provider.
+     * @param {string} file_path - The path to the file to upload.
+     * @param modal - The modal to update with progress.
+     * @param {DriveFile} file -If provided, the file to update.
+     * @returns {Promise<void>}
+     */
+    public async uploadFile(
+        owner: string,
+        file_path: string,
+        modal: TrackableModalInfo,
+        file?: DriveFile,
+    ): Promise<void> {
         console.log({file_path, file});
 
         const provider = this._providers.find((provider) => provider.owner === owner);
@@ -271,18 +281,35 @@ class GoogleProvider extends GoogleOAuth {
 
         const file_size = await size(file_path);
 
+        modals.updateModal({
+            modalId:  modal.id,
+            children: <OpenWithNativeAppModal { ...modal } progress={ {
+                total:   file_size,
+                current: 0,
+            } }/>,
+        });
+
         // get the filename from the filepath in order to include the default extension
         const filename = file_path.replace(/\\/g, "/").split("/").pop()!;
 
+        let url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable";
+        let method = "POST";
+
+        // if the file already exists, we will update it
+        if (file) {
+            url = `https://www.googleapis.com/upload/drive/v3/files/${ file.id }?uploadType=resumable`;
+            method = "PATCH";
+        }
+
         // mime types are not always accurate (especially with derived types such as docx (aka zip with specialized
         // structure inside)), so we will use the file extension to determine the mime type
-        const initial_request = await fetch(`https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable`, {
-            method:  "POST",
+        const initial_request = await fetch(url, {
+            method,
             headers: {
                 "Authorization": `Bearer ${ access_token }`,
                 "X-Upload-Content-Length": `${ file_size }`,
             },
-            body:    JSON.stringify({
+            body:    file?.id ? undefined : JSON.stringify({
                 name: filename,
             }),
         });
@@ -333,8 +360,13 @@ class GoogleProvider extends GoogleOAuth {
                 range_upper = result.range_upper;
             }
 
-            console.log(`Uploaded ${ formatByteSize(BigInt(range_upload_upper)) } of ` +
-                        `${ formatByteSize(BigInt(file_size)) } bytes`);
+            modals.updateModal({
+                modalId:  modal.id,
+                children: <OpenWithNativeAppModal { ...modal } progress={ {
+                    total:   file_size,
+                    current: range_upload_upper + 1,
+                } }/>,
+            });
         }
 
         if (last_chunk > 0) {
@@ -365,7 +397,13 @@ class GoogleProvider extends GoogleOAuth {
                 range_upper = result.range_upper;
             }
 
-            console.log(`Uploaded ${ formatByteSize(BigInt(file_size)) } of ${ formatByteSize(BigInt(file_size)) } bytes`);
+            modals.updateModal({
+                modalId:  modal.id,
+                children: <OpenWithNativeAppModal { ...modal } progress={ {
+                    total:   file_size,
+                    current: file_size,
+                } }/>,
+            });
         }
     }
 

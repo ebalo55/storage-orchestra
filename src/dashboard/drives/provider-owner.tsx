@@ -1,94 +1,33 @@
-import {
-    Card,
-    Center,
-    Grid,
-    GridCol,
-    Group,
-    Loader,
-    Text,
-    Title,
-} from "@mantine/core";
-import {modals} from "@mantine/modals";
+import { Card, Center, Grid, GridCol, Group, Loader, Text, Title } from "@mantine/core";
+import { modals } from "@mantine/modals";
 import {
     IconArrowsMove,
-    IconBinary,
     IconChevronRight,
     IconCloud,
     IconCloudDownload,
     IconDownload,
-    IconFileText,
-    IconFileTypePdf,
-    IconFileZip,
-    IconFolder,
-    IconFolderSymlink,
     IconHelpHexagon,
     IconInfoHexagon,
-    IconMusic,
     IconPencil,
-    IconPresentation,
-    IconProps,
-    IconTableFilled,
     IconTrash,
     IconUserPlus,
 } from "@tabler/icons-react";
-import {
-    BaseDirectory,
-    remove,
-} from "@tauri-apps/plugin-fs";
-import {openUrl} from "@tauri-apps/plugin-opener";
-import {useContextMenu} from "mantine-contextmenu";
-import {title} from "radash";
-import {
-    Dispatch,
-    ExoticComponent,
-    FC,
-    SetStateAction,
-    useEffect,
-    useState,
-} from "react";
-import {useParams} from "react-router";
+import { Channel } from "@tauri-apps/api/core";
+import { BaseDirectory, remove } from "@tauri-apps/plugin-fs";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { useContextMenu } from "mantine-contextmenu";
+import { title } from "radash";
+import { Dispatch, FC, SetStateAction, useEffect, useState } from "react";
+import { useParams } from "react-router";
 import classes from "../../assets/context-menu.module.css";
-import {OpenWithNativeAppModal} from "../../components/open-with-native-app-modal.tsx";
-import {PageHeader} from "../../components/page-header.tsx";
-import {useSettings} from "../../hooks/use-settings.ts";
-import {
-    GoogleFile,
-    GoogleProvider,
-} from "../../providers/google-provider.tsx";
-import {
-    commands,
-    Settings,
-    StorageProvider,
-} from "../../tauri-bindings.ts";
-
-
-const FOLDER_LIKE_MIMES = [
-    "application/vnd.google-apps.folder",
-    "application/vnd.google-apps.shortcut",
-];
-
-const DOCUMENT_LIKE_MIMES = [
-    "application/vnd.google-apps.document",
-    "application/vnd.google-apps.presentation",
-    "application/vnd.google-apps.spreadsheet",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-];
-
-const MAPPED_MIMES: {
-    [key: string]: ExoticComponent<IconProps>
-} = {
-    "application/vnd.google-apps.folder":       IconFolder,
-    "application/vnd.google-apps.shortcut":     IconFolderSymlink,
-    "application/vnd.google-apps.spreadsheet":  IconTableFilled,
-    "application/vnd.google-apps.document":     IconFileText,
-    "application/vnd.google-apps.presentation": IconPresentation,
-    "audio/mpeg":                               IconMusic,
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": IconFileText,
-    "application/pdf":                          IconFileTypePdf,
-    "application/x-zip-compressed":             IconFileZip,
-    "application/zip":                          IconFileZip,
-    "application/octet-stream":                 IconBinary,
-};
+import { OpenWithNativeAppModal } from "../../components/open-with-native-app-modal.tsx";
+import { PageHeader } from "../../components/page-header.tsx";
+import { IntelligentDivider } from "../../components/provider-intelligent-divider.tsx";
+import { DOCUMENT_LIKE_MIMES, FOLDER_LIKE_MIMES, MAPPED_MIMES } from "../../constants.ts";
+import { useSettings } from "../../hooks/use-settings.ts";
+import { TrackableModalInfo } from "../../interfaces/trackable-modal-info.ts";
+import { GoogleFile, GoogleProvider } from "../../providers/google-provider.tsx";
+import { commands, Settings, StorageProvider, WatchProcessEvent } from "../../tauri-bindings.ts";
 
 /**
  * Load files from Google Drive
@@ -175,32 +114,56 @@ async function openWithNativeApp(file: GoogleFile, provider: StorageProvider, ow
                 throw new Error("Failed to get extended file information");
             }
 
+            const modal_channel = new Channel<WatchProcessEvent>();
+
+            // TODO: allow for multiple instances of sync to be open at the same time with a "reduce to icon" like
+            // behaviour that allows the user to open the windows from where he left off Allow only a single modal to
+            // be open at a time
             const modal_id = modals.open({
                 size:     "36rem",
                 padding:  "md",
+                closeOnClickOutside: false,
+                withCloseButton:     false,
                 title:    <Title order={ 4 }>Opening '{ file.name }'</Title>,
-                children: <OpenWithNativeAppModal download_progress={ 0 } download_size={ extended_file.size }/>,
+                children:            <OpenWithNativeAppModal progress={ {current: 0, total: extended_file.size} }
+                                                             channel={ modal_channel }
+                                                             manual_override={ {
+                                                                 upload: async (_path: string) => {},
+                                                             } }
+                                     />,
             });
-            const download_path = await google.downloadFile(owner, file, {
+            const modal_data = {
                 id:       modal_id,
                 progress: {
                     total:   extended_file.size,
                     current: 0,
                 },
-            });
+                channel:         modal_channel,
+                manual_override: {
+                    upload: async (path: string) => {
+                        await google.uploadFile(owner, path, modal_data, file);
+
+                        // Get the filename from the updated content to include the extension automatically
+                        const filename = path.replace(/\\/g, "/").split("/").pop()!;
+                        await remove(filename, {baseDir: BaseDirectory.Temp});
+                    },
+                },
+            } as TrackableModalInfo;
+
+            const download_path = await google.downloadFile(owner, file, modal_data);
             console.log(download_path);
             if (!download_path) {
                 throw new Error("Failed to download file");
             }
-            // TODO: insert here a channel to keep the ui update, the channel must be provided to modal in order to
-            //  update the progresses
-            const updated_content = await commands.watchNativeOpen(download_path);
+
+            const updated_content = await commands.watchNativeOpen(download_path, modal_channel);
 
             if (updated_content.status === "error") {
                 throw new Error(updated_content.error);
             }
 
-            await google.uploadFile(owner, file, updated_content.data);
+            // TODO: File upload should handle updating a file already in the drive instead of always creating a new one
+            await google.uploadFile(owner, updated_content.data, modal_data, file);
 
             // Get the filename from the updated content to include the extension automatically
             const filename = updated_content.data.split("/").pop()!;
@@ -351,9 +314,20 @@ export default function DrivesProviderOwner() {
                 }
                 {
                     !loading &&
-                    objects.map(object => <ObjectCard object={ object } provider={ provider as StorageProvider }
-                                                      owner={ owner as string }
-                                                      key={ object.id }/>)
+                    objects.map((object, index) => {
+                        return (
+                            <>
+                                <IntelligentDivider objects={ objects }
+                                                    key={ index }
+                                                    index={ index }
+                                                    object={ object }/>
+                                <ObjectCard object={ object }
+                                            provider={ provider as StorageProvider }
+                                            owner={ owner as string }
+                                            key={ object.id }/>
+                            </>
+                        );
+                    })
                 }
             </Grid>
         </div>
