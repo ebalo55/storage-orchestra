@@ -39,5 +39,5 @@ pub type AppState = RwLock<AppStateDeep>;
 #[educe(Default)]
 pub struct CancellationTokens {
     #[educe(Default(expression = Arc::new(Mutex::new(None))))]
-    watch_native_open_command: Arc<Mutex<Option<CancellationToken>>>,
+    pub watch_native_open_command: Arc<Mutex<Option<CancellationToken>>>,
 }
