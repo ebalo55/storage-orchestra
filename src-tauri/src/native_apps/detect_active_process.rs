@@ -3,8 +3,8 @@ use crate::native_apps::open_file::open_file;
 use crate::native_apps::watch_process_event::WatchProcessEvent;
 use std::process::Command;
 use sysinfo::Pid;
-use tauri::ipc::Channel;
 use tauri::AppHandle;
+use tauri::ipc::Channel;
 use tauri_plugin_shell::ShellExt;
 use tracing::{debug, error, warn};
 
@@ -42,7 +42,8 @@ pub async fn get_process_using_file(
 
     #[cfg(target_os = "windows")]
     {
-        return super::detect_active_process_windows::find_process_handling_file(file_path, event).await;
+        return super::detect_active_process_windows::find_process_handling_file(file_path, event)
+            .await;
     }
 
     #[cfg(any(target_os = "macos", target_os = "linux"))]
@@ -69,6 +70,4 @@ pub async fn get_process_using_file(
                 .map_err(|e| e.to_string())?,
         ));
     }
-
-    Err("Cannot get process PID".to_string())
 }
