@@ -1,30 +1,26 @@
-import { Card, Center, Grid, GridCol, Group, Loader, Text, Title } from "@mantine/core";
+import { ActionIcon, Center, Grid, GridCol, Group, List, ListItem, Loader, Stack, Text, Title } from "@mantine/core";
+import { Dropzone } from "@mantine/dropzone";
 import { modals } from "@mantine/modals";
 import {
-    IconArrowsMove,
-    IconChevronRight,
-    IconCloud,
-    IconCloudDownload,
-    IconDownload,
-    IconHelpHexagon,
-    IconInfoHexagon,
-    IconPencil,
-    IconTrash,
-    IconUserPlus,
+    IconCloudUpload,
+    IconFile,
+    IconFilePlus,
+    IconFolderPlus,
+    IconListTree,
+    IconRefresh,
+    IconX,
 } from "@tabler/icons-react";
 import { Channel } from "@tauri-apps/api/core";
 import { BaseDirectory, remove } from "@tauri-apps/plugin-fs";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { useContextMenu } from "mantine-contextmenu";
 import { title } from "radash";
-import { Dispatch, FC, SetStateAction, useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useParams } from "react-router";
-import classes from "../../assets/context-menu.module.css";
+import { MyDriveObjectCard } from "../../components/my-drive-object-card.tsx";
 import { OpenWithNativeAppModal } from "../../components/open-with-native-app-modal.tsx";
 import { PageHeader } from "../../components/page-header.tsx";
 import { IntelligentDivider } from "../../components/provider-intelligent-divider.tsx";
-import { DOCUMENT_LIKE_MIMES, FOLDER_LIKE_MIMES, MAPPED_MIMES } from "../../constants.ts";
-import { useSettings } from "../../hooks/use-settings.ts";
+import { UploadFiles } from "../../components/upload-files.tsx";
 import { TrackableModalInfo } from "../../interfaces/trackable-modal-info.ts";
 import { GoogleFile, GoogleProvider } from "../../providers/google-provider.tsx";
 import { commands, Settings, StorageProvider, WatchProcessEvent } from "../../tauri-bindings.ts";
@@ -120,11 +116,11 @@ async function openWithNativeApp(file: GoogleFile, provider: StorageProvider, ow
             // behaviour that allows the user to open the windows from where he left off Allow only a single modal to
             // be open at a time
             const modal_id = modals.open({
-                size:     "36rem",
-                padding:  "md",
+                size:    "36rem",
+                padding: "md",
                 closeOnClickOutside: false,
                 withCloseButton:     false,
-                title:    <Title order={ 4 }>Opening '{ file.name }'</Title>,
+                title:   <Title order={ 4 }>Opening '{ file.name }'</Title>,
                 children:            <OpenWithNativeAppModal progress={ {current: 0, total: extended_file.size} }
                                                              channel={ modal_channel }
                                                              manual_override={ {
@@ -133,15 +129,15 @@ async function openWithNativeApp(file: GoogleFile, provider: StorageProvider, ow
                                      />,
             });
             const modal_data = {
-                id:       modal_id,
-                progress: {
+                id:              modal_id,
+                progress:        {
                     total:   extended_file.size,
                     current: 0,
                 },
                 channel:         modal_channel,
                 manual_override: {
                     upload: async (path: string) => {
-                        await google.uploadFile(owner, path, modal_data, file);
+                        await google.updateFile(owner, path, modal_data, file);
 
                         // Get the filename from the updated content to include the extension automatically
                         const filename = path.replace(/\\/g, "/").split("/").pop()!;
@@ -162,8 +158,7 @@ async function openWithNativeApp(file: GoogleFile, provider: StorageProvider, ow
                 throw new Error(updated_content.error);
             }
 
-            // TODO: File upload should handle updating a file already in the drive instead of always creating a new one
-            await google.uploadFile(owner, updated_content.data, modal_data, file);
+            await google.updateFile(owner, updated_content.data, modal_data, file);
 
             // Get the filename from the updated content to include the extension automatically
             const filename = updated_content.data.split("/").pop()!;
@@ -199,89 +194,12 @@ async function openWithPreferredApp(file: GoogleFile, provider: StorageProvider,
     }
 }
 
-const ObjectCard: FC<{
-    object: GoogleFile,
-    provider: StorageProvider,
-    owner: string,
-}> = ({object, provider, owner}) => {
-    const Icon = MAPPED_MIMES[object.mimeType] || IconHelpHexagon;
-    const {showContextMenu} = useContextMenu();
-    const {settings} = useSettings();
-
-    return (
-        <GridCol span={ 1 }>
-            <Card key={ object.id }
-                  className={ "p-4 cursor-pointer select-none" }
-                  withBorder
-                  title={ object.name }
-                  onDoubleClick={ () => openWithPreferredApp(object, provider, owner, settings) }
-                  onContextMenu={ showContextMenu([
-                      {
-                          key:       "open-with",
-                          hidden:    FOLDER_LIKE_MIMES.includes(object.mimeType),
-                          icon:      <IconArrowsMove size={ 18 }/>,
-                          iconRight: <IconChevronRight size={ 18 }/>,
-                          items:     [
-                              {
-                                  key:    "cloud-app",
-                                  hidden: !DOCUMENT_LIKE_MIMES.includes(object.mimeType),
-                                  icon:   <IconCloud size={ 18 }/>,
-                                  onClick: () => openWithOnlineApp(object, provider),
-                              },
-                              {
-                                  key:  "native-app",
-                                  icon: <IconCloudDownload size={ 18 }/>,
-                                  onClick: () => openWithNativeApp(object, provider, owner),
-                              },
-                          ],
-                      },
-                      {key: "divider", hidden: FOLDER_LIKE_MIMES.includes(object.mimeType)},
-                      {
-                          key:  "download",
-                          icon: <IconDownload size={ 18 }/>,
-                          onClick: () => console.log("Download"),
-                      },
-                      {
-                          key:  "rename",
-                          icon: <IconPencil size={ 18 }/>,
-                          onClick: () => console.log("Rename"),
-                      },
-                      {
-                          key:  "share",
-                          icon: <IconUserPlus size={ 18 }/>,
-                          onClick: () => console.log("Share"),
-                      },
-                      {key: "divider-2"},
-                      {
-                          key:  "properties",
-                          icon: <IconInfoHexagon size={ 18 }/>,
-                          onClick: () => console.log("Properties"),
-                      },
-                      {
-                          key:   "trash",
-                          icon:  <IconTrash size={ 18 }/>,
-                          color: "red",
-                          onClick: () => console.log("Trash"),
-                      },
-                  ], {
-                      classNames: {
-                          item: classes.contextMenuItem,
-                      },
-                  }) }
-            >
-                <Group wrap={ "nowrap" }>
-                    <Icon size={ 24 } style={ {flexShrink: "0"} }/>
-                    <Text truncate>{ object.name }</Text>
-                </Group>
-            </Card>
-        </GridCol>
-    );
-};
-
 export default function DrivesProviderOwner() {
     const {provider, owner} = useParams();
     const [ objects, setObjects ] = useState<GoogleFile[]>([]);
     const [ loading, setLoading ] = useState(true);
+    const [ uploading, setUploading ] = useState(false);
+    const [ modal_id, setModalId ] = useState<string>();
 
     useEffect(() => {
         if (!provider || !owner) {
@@ -291,45 +209,151 @@ export default function DrivesProviderOwner() {
         loadFiles(provider as StorageProvider, owner, setObjects, setLoading).then(() => console.log("Files fetched"));
     }, [ owner, provider ]);
 
+    useEffect(() => {
+        if (!uploading && modal_id) {
+            modals.close(modal_id);
+        }
+    }, [ uploading, modal_id ]);
+
     return (
-        <div className={ "p-8" }>
-            <PageHeader title={ `${ title(provider) }'s ${ owner } account` }>
-                <Text>
-                    This page shows the files and folders in the { title(provider) } account owned by { owner }.
-                </Text>
-                <Text>
-                    You can view and manage these files and folders here like you would in the { title(provider) } web
-                    app.
-                </Text>
-            </PageHeader>
-            <Grid columns={ 5 } gutter={ "lg" }>
-                {
-                    loading && (
-                                <GridCol span={ 5 }>
-                                    <Center className={ "p-4" }>
-                                        <Loader/>
-                                    </Center>
-                                </GridCol>
-                            )
-                }
-                {
-                    !loading &&
-                    objects.map((object, index) => {
-                        return (
-                            <>
-                                <IntelligentDivider objects={ objects }
-                                                    key={ index }
-                                                    index={ index }
-                                                    object={ object }/>
-                                <ObjectCard object={ object }
-                                            provider={ provider as StorageProvider }
-                                            owner={ owner as string }
-                                            key={ object.id }/>
-                            </>
-                        );
-                    })
-                }
-            </Grid>
-        </div>
+        <>
+            <div className={ "p-8 relative" }>
+                <PageHeader title={ `${ title(provider) }'s ${ owner } account` }>
+                    <Text>
+                        This page shows the files and folders in the { title(provider) } account owned by { owner }.
+                    </Text>
+                    <Text>
+                        Here you can:
+                    </Text>
+                    <List ml={ "md" } listStyleType={ "none" }>
+                        <ListItem>
+                            <Group>
+                                <IconCloudUpload size={ 20 }/>
+                                <Text>
+                                    Upload files and folders dragging them into this window
+                                </Text>
+                            </Group>
+                        </ListItem>
+                        <ListItem>
+                            <Group>
+                                <IconListTree size={ 20 }/>
+                                <Text>
+                                    Explore the files and folders in the account
+                                </Text>
+                            </Group>
+                        </ListItem>
+                        <ListItem>
+                            <Group>
+                                <IconFile size={ 20 }/>
+                                <Text>
+                                    Open files with your preferred app
+                                </Text>
+                            </Group>
+                        </ListItem>
+                    </List>
+                </PageHeader>
+                <Grid columns={ 5 } gutter={ "lg" }>
+                    <GridCol span={ 5 } key={ "toolbar" }>
+                        <Group>
+                            <ActionIcon variant={ "outline" }>
+                                <IconFolderPlus size={ 20 }/>
+                            </ActionIcon>
+                            <ActionIcon variant={ "outline" }>
+                                <IconFilePlus size={ 20 }/>
+                            </ActionIcon>
+                            <ActionIcon variant={ "light" } ml={ "auto" }>
+                                <IconRefresh size={ 20 }/>
+                            </ActionIcon>
+                        </Group>
+                    </GridCol>
+                    {
+                        loading && (
+                                    <GridCol span={ 5 }>
+                                        <Center className={ "p-4" }>
+                                            <Loader/>
+                                        </Center>
+                                    </GridCol>
+                                )
+                    }
+                    {
+                        !loading &&
+                        objects.map((object, index) => {
+                            return (
+                                <>
+                                    <IntelligentDivider objects={ objects }
+                                                        key={ index }
+                                                        index={ index }
+                                                        object={ object }/>
+                                    <MyDriveObjectCard object={ object }
+                                                       provider={ provider as StorageProvider }
+                                                       owner={ owner as string }
+                                                       key={ object.id }
+                                                       openWithPreferredApp={ openWithPreferredApp }
+                                                       openWithOnlineApp={ openWithOnlineApp }
+                                                       openWithNativeApp={ openWithNativeApp }
+                                    />
+                                </>
+                            );
+                        })
+                    }
+                </Grid>
+            </div>
+            <Dropzone.FullScreen
+                active
+                onDrop={ (files) => {
+                    setUploading(true);
+                    setTimeout(() => {
+                        if (!uploading) {
+                            setModalId(modals.open({
+                                size:                "36rem",
+                                padding:             "md",
+                                closeOnClickOutside: false,
+                                withCloseButton:     true,
+                                title:               <Title order={ 4 }>Uploading files</Title>,
+                                children:            <UploadFiles files={ files }
+                                                                  owner={ owner! }
+                                                                  provider={ provider! as StorageProvider }
+                                                                  setUploading={ setUploading }/>,
+                                onClose:             () => setUploading(false),
+                            }));
+                        }
+                    }, 1000);
+                } }
+                styles={ {
+                    root:  {
+                        display: "flex",
+                    },
+                    inner: {
+                        flexGrow: 1,
+                    },
+                } }
+            >
+                <Stack justify={ "center" }
+                       align={ "center" }
+                       gap={ "lg" }
+                       mih={ "100%" }
+                       h={ "100%" }
+                       style={ {pointerEvents: "none"} }>
+                    <Dropzone.Accept>
+                        <IconCloudUpload size={ 52 } color="var(--mantine-color-blue-6)" stroke={ 1.5 }/>
+                    </Dropzone.Accept>
+                    <Dropzone.Reject>
+                        <IconX size={ 52 } color="var(--mantine-color-red-6)" stroke={ 1.5 }/>
+                    </Dropzone.Reject>
+                    <Dropzone.Idle>
+                        <IconCloudUpload size={ 52 } color="var(--mantine-color-dimmed)" stroke={ 1.5 }/>
+                    </Dropzone.Idle>
+
+                    <Stack gap={ 5 } align={ "center" }>
+                        <Title order={ 2 } className={ "text-center !font-semibold" }>
+                            Drag and drop files and folders here
+                        </Title>
+                        <Text size={ "lg" } c={ "dimmed" } className={ "text-center" }>
+                            Attach as many file and folders as you want, we'll take care of the rest
+                        </Text>
+                    </Stack>
+                </Stack>
+            </Dropzone.FullScreen>
+        </>
     );
 }

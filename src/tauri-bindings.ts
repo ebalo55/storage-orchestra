@@ -560,7 +560,7 @@ secret: CryptData | null }
 /**
  * Events that can be sent by the watch process event channel.
  */
-export type WatchProcessEvent =
+export type WatchProcessEvent = 
 /**
  * The process to watch will be started soon.
  */
