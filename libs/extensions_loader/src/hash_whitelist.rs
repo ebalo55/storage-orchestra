@@ -4,7 +4,7 @@ use std::io::Read;
 
 const TRUSTED_HASHES: &[&str] = &[
     // sample_extension --release
-    "6acfdb8ea060129ada78430ff5e737cfcf40781a36b527743c682e51ace3c67f60e69928e239e98b199a7062faf4ff7cba4b2b307682dffbc7bc00ec2cd43ba5",
+    "e3203d47f7e213fd5029e39bd7912cadcfc24e56d71975a96feddc96f0fc7d4c7884ba1fbbf19033b79ea53569af8096f5cf793de2c46ecfd883937ddfa6672c",
 ];
 
 /// Hashes a file using SHA-3 512.

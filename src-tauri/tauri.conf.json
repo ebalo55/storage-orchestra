@@ -31,6 +31,18 @@
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.ico"
-    ]
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMxNTU2Qjg3ODkyOEJGNEUKUldST3Z5aUpoMnRWTVI1NEQxbHU2bUV0MW5uWjVLVWplN1R5UVQydTczbkFQUzZXejVRRExJR3UK",
+      "endpoints": [
+        "https://github.com/ebalo55/storage-orchestra/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

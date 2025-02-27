@@ -615,9 +615,12 @@ export type WatchProcessEvent =
 
 /** tauri-specta globals **/
 
-import { Channel as TAURI_CHANNEL, invoke as TAURI_INVOKE } from "@tauri-apps/api/core";
+import {
+    Channel as TAURI_CHANNEL,
+    invoke as TAURI_INVOKE,
+} from "@tauri-apps/api/core";
 import * as TAURI_API_EVENT from "@tauri-apps/api/event";
-import { type WebviewWindow as __WebviewWindow__ } from "@tauri-apps/api/webviewWindow";
+import {type WebviewWindow as __WebviewWindow__} from "@tauri-apps/api/webviewWindow";
 
 type __EventObj__<T> = {
 	listen: (

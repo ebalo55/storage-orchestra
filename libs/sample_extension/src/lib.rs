@@ -1,4 +1,5 @@
 use extensions_loader::Extension;
+use extensions_loader::tauri::AppHandle;
 
 struct SampleExtension;
 
@@ -19,7 +20,7 @@ impl Extension for SampleExtension {
         "A sample extension for the extensions loader.".to_string()
     }
 
-    fn run(&self) {
+    fn run(&self, _app: AppHandle) {
         println!("Sample Extension Loaded Successfully!");
     }
 }
@@ -31,23 +32,4 @@ pub extern "C" fn create_extension() -> *mut Box<dyn Extension> {
     let ext: Box<dyn Extension> = Box::new(SampleExtension {});
     // Wrap it in a Box, then convert that Box into a thin pointer.
     Box::into_raw(Box::new(ext))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_create_extension() {
-        let extension = create_extension();
-
-        assert_eq!(extension.name(), "Sample Extension");
-        assert_eq!(extension.version(), "0.1.0");
-        assert_eq!(extension.author(), "Ebalo");
-        assert_eq!(
-            extension.description(),
-            "A sample extension for the extensions loader."
-        );
-        extension.run();
-    }
 }

@@ -1,5 +1,6 @@
 use libloading::Library;
 use std::sync::RwLock;
+use tauri::AppHandle;
 
 pub static EXTENSIONS: RwLock<Vec<Box<dyn Extension>>> = RwLock::new(vec![]);
 pub static LIBRARIES: RwLock<Vec<Library>> = RwLock::new(vec![]);
@@ -16,7 +17,7 @@ pub trait Extension: Send + Sync {
     /// A description of the extension.
     fn description(&self) -> String;
     /// The entry point of the extension.
-    fn run(&self);
+    fn run(&self, app: AppHandle);
 }
 
 /// Loads a dynamic library and ensures it follows the `Extension` trait.

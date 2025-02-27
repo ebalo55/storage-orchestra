@@ -4,6 +4,7 @@ description = "A Tauri App"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+default-run = "storage-orchestra"
 
 [profile.release]
 lto = true
@@ -17,7 +18,7 @@ codegen-units = 1
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "storage_orchestra_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -63,3 +64,5 @@ windows = { version = "0.51", features = [
 windows-targets = "0.48.5"
 futures-util = "0.3.31"
 tokio-util = { version = "0.7.13", features = ["full"] }
+extensions_loader = { path = "../libs/extensions_loader" }
+tauri-plugin-updater = "2"

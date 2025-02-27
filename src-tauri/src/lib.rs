@@ -6,6 +6,7 @@ mod state;
 mod utility;
 
 use crate::state::state::{AppStateDeep, STATE_FILE};
+use extensions_loader::load_extensions;
 use specta::specta;
 use specta_typescript::Typescript;
 use std::{fs, io};
@@ -102,6 +103,7 @@ pub fn run() -> Result<(), String> {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_upload::init())
         .plugin(tauri_plugin_store::Builder::new().build())
@@ -116,8 +118,8 @@ pub fn run() -> Result<(), String> {
 
             app.manage(RwLock::new(AppStateDeep::default()));
 
-            // let window = app.get_webview_window("main").unwrap();
-            // window.eval("window.location.replace('https://google.com')");
+            let handle = app.handle();
+            load_extensions(handle.clone()).unwrap();
 
             Ok(())
         })
