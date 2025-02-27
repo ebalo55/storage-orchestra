@@ -1,4 +1,5 @@
 import { Channel } from "@tauri-apps/api/core";
+import { FC } from "react";
 import { WatchProcessEvent } from "../tauri-bindings.ts";
 
 /**
@@ -15,4 +16,7 @@ export interface TrackableModalInfo {
         path?: string,
         upload: (path: string) => Promise<void>
     }
+    element?: FC<Omit<TrackableModalInfo, "id"> & {
+        id?: string
+    }>
 }

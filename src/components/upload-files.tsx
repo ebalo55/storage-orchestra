@@ -2,7 +2,7 @@ import { Progress, Stack, Text } from "@mantine/core";
 import { FileWithPath } from "@mantine/dropzone";
 import { all } from "radash";
 import { Dispatch, FC, SetStateAction, useEffect, useMemo, useState } from "react";
-import { Provider } from "../interfaces/storage-provider.ts";
+import { Provider } from "../interfaces/storage-provider.tsx";
 import { GoogleProvider } from "../providers/google-provider.tsx";
 import { StorageProvider } from "../tauri-bindings.ts";
 

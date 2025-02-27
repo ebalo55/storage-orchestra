@@ -30,9 +30,9 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { title } from "radash";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useParams } from "react-router";
-import { CreateFolderModal } from "../../components/create-folder-modal.tsx";
+import { ModalCreateFolder } from "../../components/modal-create-folder.tsx";
+import { ModalOpenWithNativeApp } from "../../components/modal-open-with-native-app.tsx";
 import { MyDriveObjectCard } from "../../components/my-drive-object-card.tsx";
-import { OpenWithNativeAppModal } from "../../components/open-with-native-app-modal.tsx";
 import { PageHeader } from "../../components/page-header.tsx";
 import { IntelligentDivider } from "../../components/provider-intelligent-divider.tsx";
 import { UploadFiles } from "../../components/upload-files.tsx";
@@ -138,8 +138,9 @@ async function openWithNativeApp(file: GoogleFile, provider: StorageProvider, ow
                 padding: "md",
                 closeOnClickOutside: false,
                 withCloseButton:     false,
+                closeOnEscape: false,
                 title:   <Title order={ 4 }>Opening '{ file.name }'</Title>,
-                children:            <OpenWithNativeAppModal progress={ {current: 0, total: extended_file.size} }
+                children:      <ModalOpenWithNativeApp progress={ {current: 0, total: extended_file.size} }
                                                              channel={ modal_channel }
                                                              manual_override={ {
                                                                  upload: async (_path: string) => {},
@@ -349,12 +350,12 @@ export default function DrivesProviderOwner() {
                                                 <Anchor key={ index }
                                                         href={ "#" }
                                                         truncate
-                                                        title={ folder.name === "root" ? "Home" : folder.name }
+                                                        title={ folder.name === "root" ? "My Drive" : folder.name }
                                                         onClick={ () => setFolderTree((prev) => prev.slice(
                                                             0,
                                                             index + 1,
                                                         )) }>
-                                                    { folder.name === "root" ? "Home" : folder.name }
+                                                    { folder.name === "root" ? "My Drive" : folder.name }
                                                 </Anchor>
                                             );
                                         })
@@ -367,8 +368,9 @@ export default function DrivesProviderOwner() {
                                     size:                "36rem",
                                     closeOnClickOutside: true,
                                     withCloseButton:     true,
+                                    closeOnEscape: true,
                                     title:               <Title order={ 4 }>Create a new folder</Title>,
-                                    children:            <CreateFolderModal owner={ owner! }
+                                    children:      <ModalCreateFolder owner={ owner! }
                                                                             provider={ provider as StorageProvider }
                                                                             refresh={ async () => {
                                                                                 await refreshFiles(
@@ -425,6 +427,7 @@ export default function DrivesProviderOwner() {
                                                        openWithNativeApp={ openWithNativeApp }
                                                        setFolderTree={ setFolderTree }
                                                        settings={ settings }
+                                                       folder_tree={ folder_tree }
                                     />
                                 </>
                             );
@@ -442,6 +445,7 @@ export default function DrivesProviderOwner() {
                                 size:                "36rem",
                                 padding:             "md",
                                 closeOnClickOutside: false,
+                                closeOnEscape: false,
                                 withCloseButton:     true,
                                 title:               <Title order={ 4 }>Uploading files</Title>,
                                 children:            <UploadFiles files={ files }

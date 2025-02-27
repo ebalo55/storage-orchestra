@@ -1,8 +1,8 @@
 import { FileWithPath } from "@mantine/dropzone";
 import { modals } from "@mantine/modals";
 import { fetch } from "@tauri-apps/plugin-http";
-import { createElement, Dispatch, SetStateAction } from "react";
-import { OpenWithNativeAppModal } from "../components/open-with-native-app-modal.tsx";
+import { Dispatch, SetStateAction } from "react";
+import { ModalOpenWithNativeApp } from "../components/modal-open-with-native-app.tsx";
 import { ExtendedGoogleFile } from "../providers/google-provider.tsx";
 import { ProviderData, StorageProvider } from "../tauri-bindings.ts";
 import { State } from "../utility/state.ts";
@@ -61,12 +61,14 @@ export abstract class Provider extends OAuthProvider {
      * @param {string} owner - The owner of the provider to use
      * @param {DriveFile} file - The file to download
      * @param {TrackableModalInfo} modal - The modal id to use for progress tracking
+     * @param {string} save_path - The path to save the file to, if not provided, a temporary path is used
      * @returns {Promise<string | undefined>}
      */
     public abstract downloadFile(
         owner: string,
         file: DriveFile,
         modal: TrackableModalInfo,
+        save_path?: string,
     ): Promise<string | undefined>;
 
     /**
@@ -207,13 +209,11 @@ export abstract class Provider extends OAuthProvider {
             return;
         }
 
+        const Component = modal.element ?? ModalOpenWithNativeApp;
+
         modals.updateModal({
             modalId: modal.id,
-            children: createElement(OpenWithNativeAppModal, {
-                    ...modal,
-                    progress: {total, current},
-                },
-            ),
+            children: <Component { ...modal } progress={ {total, current} }/>,
         });
     }
 

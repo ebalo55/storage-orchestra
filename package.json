@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@fabianlars/tauri-plugin-oauth": "^2.0.0",
-    "@google-cloud/local-auth": "^3.0.1",
     "@mantine/carousel": "^7.17.0",
     "@mantine/core": "^7.17.0",
     "@mantine/dropzone": "^7.17.0",
@@ -33,7 +32,6 @@
     "dayjs": "^1.11.13",
     "embla-carousel-react": "^7.1.0",
     "framer-motion": "^12.4.7",
-    "googleapis": "^144.0.0",
     "mantine-contextmenu": "^7.15.3",
     "mantine-form-yup-resolver": "^2.0.0",
     "query-string": "^9.1.1",

@@ -19,8 +19,32 @@ export interface GoogleFileListing {
 
 export interface GoogleFile extends DriveFile {}
 
+// parents, thumbnailLink, shared, lastModifyingUser, owners, sharingUser, createdTime, modifiedTime
 export interface ExtendedGoogleFile extends GoogleFile {
-    size: number,
+    size?: number,
+    parents: string[],
+    thumbnailLink: string,
+    shared: boolean,
+    lastModifyingUser: {
+        displayName: string,
+        photoLink: string,
+        emailAddress: string,
+        me: boolean,
+    },
+    owners: {
+        displayName: string,
+        photoLink: string,
+        emailAddress: string,
+        me: boolean,
+    }[],
+    sharingUser: {
+        displayName: string,
+        photoLink: string,
+        emailAddress: string,
+        me: boolean,
+    },
+    createdTime: string,
+    modifiedTime: string,
 }
 
 interface GoogleDriveDownloadResponse {
@@ -113,7 +137,7 @@ class GoogleProvider extends GoogleOAuth {
         const {accessToken} = valid;
 
         const url = `https://www.googleapis.com/drive/v3/files/${ file.id }?${ new URLSearchParams({
-            fields: "id, name, size, mimeType, kind",
+            fields: "id, name, size, mimeType, kind, parents, thumbnailLink, shared, lastModifyingUser, owners, sharingUser, createdTime, modifiedTime",
         }) }`;
         const response = await this.authorizedFetch(url, accessToken);
 
@@ -127,7 +151,12 @@ class GoogleProvider extends GoogleOAuth {
         }
     }
 
-    public async downloadFile(owner: string, file: DriveFile, modal: TrackableModalInfo): Promise<string | undefined> {
+    public async downloadFile(
+        owner: string,
+        file: DriveFile,
+        modal: TrackableModalInfo,
+        save_path?: string,
+    ): Promise<string | undefined> {
         const valid = await this.getValidProvider(owner);
         if (!valid) {
             return;
@@ -163,7 +192,11 @@ class GoogleProvider extends GoogleOAuth {
                 default:
                     extension = "";
             }
-            const download_path = await path.join(await path.tempDir(), file.name.concat(extension));
+
+            if (!save_path) {
+                save_path = await path.tempDir();
+            }
+            const download_path = await path.join(save_path, file.name.concat(extension));
 
             const headers = new Map<string, string>();
             headers.set("Authorization", `Bearer ${ accessToken }`);

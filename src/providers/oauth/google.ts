@@ -3,7 +3,7 @@ import { fetch } from "@tauri-apps/plugin-http";
 import { sendNotification } from "@tauri-apps/plugin-notification";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import querystring from "query-string";
-import { Provider } from "../../interfaces/storage-provider.ts";
+import { Provider } from "../../interfaces/storage-provider.tsx";
 import { commands, ProviderData } from "../../tauri-bindings.ts";
 import { dayjs } from "../../utility/dayjs.ts";
 import { StateMarker } from "../../utility/state.ts";

@@ -26,6 +26,7 @@ async function handleSubmit(
     const modal = modals.open({
         title:               <Title order={ 3 }>Updating password</Title>,
         withCloseButton:     false,
+        closeOnEscape: false,
         closeOnClickOutside: false,
         children:            (
                                  <Stack p={ "lg" }>
