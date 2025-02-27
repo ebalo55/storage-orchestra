@@ -1,0 +1,18 @@
+[package]
+name = "sample_extension"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+debug-assertions = false
+incremental = true
+opt-level = 3
+
+[dependencies]
+extensions_loader = { path = "../extensions_loader" }

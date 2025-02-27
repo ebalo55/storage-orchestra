@@ -1,0 +1,9 @@
+[package]
+name = "extensions_loader"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+libloading = "0.8.6"
+sha3 = "0.10.8"
