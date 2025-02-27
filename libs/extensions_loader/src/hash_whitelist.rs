@@ -1,11 +1,7 @@
+use crate::trusted_hashes::TRUSTED_HASHES;
 use sha3::{Digest, Sha3_512};
 use std::fs;
 use std::io::Read;
-
-const TRUSTED_HASHES: &[&str] = &[
-    // sample_extension --release
-    "e3203d47f7e213fd5029e39bd7912cadcfc24e56d71975a96feddc96f0fc7d4c7884ba1fbbf19033b79ea53569af8096f5cf793de2c46ecfd883937ddfa6672c",
-];
 
 /// Hashes a file using SHA-3 512.
 ///
