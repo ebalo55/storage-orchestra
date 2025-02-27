@@ -1169,6 +1169,7 @@ dependencies = [
 name = "extensions_loader"
 version = "0.1.0"
 dependencies = [
+    "base64ct",
     "libloading 0.8.6",
     "minisign-verify",
     "sha3",
