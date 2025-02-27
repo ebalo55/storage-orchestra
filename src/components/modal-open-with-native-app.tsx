@@ -22,7 +22,7 @@ import {
     IconRotateRectangle,
 } from "@tabler/icons-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { FC, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { TrackableModalInfo } from "../interfaces/trackable-modal-info.ts";
 import { commands, WatchProcessEvent } from "../tauri-bindings.ts";
 import { dayjs } from "../utility/dayjs.ts";
@@ -241,9 +241,7 @@ function handleChannelMessage(ev: WatchProcessEvent) {
     }
 }
 
-export const OpenWithNativeAppModal: FC<Omit<TrackableModalInfo, "id"> & {
-    id?: string
-}> = (props) => {
+export const ModalOpenWithNativeApp: NonNullable<TrackableModalInfo["element"]> = (props) => {
     useSignals();
     const Component = elements[animation_element_index.value];
 

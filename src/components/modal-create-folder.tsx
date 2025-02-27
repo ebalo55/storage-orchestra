@@ -45,7 +45,7 @@ async function createFolder(
     setLoading(false);
 }
 
-export const CreateFolderModal: FC<CreateFolderModalProps> = ({provider, owner, refresh, parent}) => {
+export const ModalCreateFolder: FC<CreateFolderModalProps> = ({provider, owner, refresh, parent}) => {
     const [ loading, setLoading ] = useState(false);
     const form = useForm({
         initialValues: {
