@@ -1,10 +1,24 @@
-import { ActionIcon, Center, Grid, GridCol, Group, List, ListItem, Loader, Stack, Text, Title } from "@mantine/core";
+import {
+    ActionIcon,
+    Anchor,
+    Breadcrumbs,
+    Center,
+    Grid,
+    GridCol,
+    Group,
+    List,
+    ListItem,
+    Loader,
+    Stack,
+    Text,
+    Title,
+} from "@mantine/core";
 import { Dropzone } from "@mantine/dropzone";
 import { modals } from "@mantine/modals";
 import {
+    IconChevronLeft,
     IconCloudUpload,
     IconFile,
-    IconFilePlus,
     IconFolderPlus,
     IconListTree,
     IconRefresh,
@@ -16,11 +30,14 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { title } from "radash";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useParams } from "react-router";
+import { CreateFolderModal } from "../../components/create-folder-modal.tsx";
 import { MyDriveObjectCard } from "../../components/my-drive-object-card.tsx";
 import { OpenWithNativeAppModal } from "../../components/open-with-native-app-modal.tsx";
 import { PageHeader } from "../../components/page-header.tsx";
 import { IntelligentDivider } from "../../components/provider-intelligent-divider.tsx";
 import { UploadFiles } from "../../components/upload-files.tsx";
+import { useSettings } from "../../hooks/use-settings.ts";
+import { DriveFile } from "../../interfaces/drive-file.ts";
 import { TrackableModalInfo } from "../../interfaces/trackable-modal-info.ts";
 import { GoogleFile, GoogleProvider } from "../../providers/google-provider.tsx";
 import { commands, Settings, StorageProvider, WatchProcessEvent } from "../../tauri-bindings.ts";
@@ -29,15 +46,15 @@ import { commands, Settings, StorageProvider, WatchProcessEvent } from "../../ta
  * Load files from Google Drive
  * @param {string} owner
  * @param {React.Dispatch<React.SetStateAction<GoogleFile[]>>} setObjects
- * @returns {Promise<void>}
+ * @param folder {string} The folder to load files from
  */
-async function loadGoogleFiles(owner: string, setObjects: Dispatch<SetStateAction<GoogleFile[]>>) {
+async function loadGoogleFiles(owner: string, setObjects: Dispatch<SetStateAction<GoogleFile[]>>, folder: string) {
     const google = await GoogleProvider.init();
-    let files = await google.listFiles(owner);
+    let files = await google.listFiles(owner, folder);
 
     setObjects(files.files);
     while (files.nextPageToken) {
-        files = await google.listFiles(owner, "root", files.nextPageToken);
+        files = await google.listFiles(owner, folder, files.nextPageToken);
         setObjects((prev) => prev.concat(files.files));
     }
 }
@@ -48,17 +65,18 @@ async function loadGoogleFiles(owner: string, setObjects: Dispatch<SetStateActio
  * @param {string} owner
  * @param {React.Dispatch<React.SetStateAction<GoogleFile[]>>} setObjects
  * @param {React.Dispatch<React.SetStateAction<boolean>>} setLoading
- * @returns {Promise<void>}
+ * @param folder {string} The folder to load files from
  */
 async function loadFiles(
     provider: StorageProvider,
     owner: string,
     setObjects: Dispatch<SetStateAction<GoogleFile[]>>,
     setLoading: Dispatch<SetStateAction<boolean>>,
+    folder: string,
 ) {
     switch (provider) {
         case "google":
-            await loadGoogleFiles(owner, setObjects);
+            await loadGoogleFiles(owner, setObjects, folder);
             break;
     }
 
@@ -174,8 +192,20 @@ async function openWithNativeApp(file: GoogleFile, provider: StorageProvider, ow
  * @param provider {StorageProvider} The provider of the file
  * @param owner {string} The owner of the file
  * @param settings {Settings} The settings of the app
+ * @param setFolder
  */
-async function openWithPreferredApp(file: GoogleFile, provider: StorageProvider, owner: string, settings?: Settings) {
+async function openWithPreferredApp(
+    file: DriveFile,
+    provider: StorageProvider,
+    owner: string,
+    setFolder: Dispatch<SetStateAction<DriveFile[]>>,
+    settings?: Settings,
+) {
+    if (file.mimeType === "application/vnd.google-apps.folder") {
+        setFolder((prev) => prev.concat(file));
+        return;
+    }
+
     if (settings?.general_behaviour.default_to_web_editor) {
         await openWithOnlineApp(file, provider);
         return;
@@ -194,6 +224,19 @@ async function openWithPreferredApp(file: GoogleFile, provider: StorageProvider,
     }
 }
 
+async function refreshFiles(
+    provider: StorageProvider,
+    owner: string,
+    setObjects: Dispatch<SetStateAction<GoogleFile[]>>,
+    setLoading: Dispatch<SetStateAction<boolean>>,
+    folder: string,
+) {
+    setLoading(true);
+    setObjects([]);
+    await loadFiles(provider as StorageProvider, owner, setObjects, setLoading, folder);
+    console.log("Files refreshed");
+}
+
 export default function DrivesProviderOwner() {
     const {provider, owner} = useParams();
     const [ objects, setObjects ] = useState<GoogleFile[]>([]);
@@ -201,12 +244,30 @@ export default function DrivesProviderOwner() {
     const [ uploading, setUploading ] = useState(false);
     const [ modal_id, setModalId ] = useState<string>();
 
+    const [ previous_folder, setPreviousFolder ] = useState<DriveFile[]>([
+        {
+            id:       "root",
+            name:     "root",
+            mimeType: "application/vnd.google-apps.folder",
+        },
+    ]);
+    const [ folder_tree, setFolderTree ] = useState<DriveFile[]>([
+        {
+            id:       "root",
+            name:     "root",
+            mimeType: "application/vnd.google-apps.folder",
+        },
+    ]);
+
+    const {settings} = useSettings();
+
     useEffect(() => {
         if (!provider || !owner) {
             return;
         }
 
-        loadFiles(provider as StorageProvider, owner, setObjects, setLoading).then(() => console.log("Files fetched"));
+        loadFiles(provider as StorageProvider, owner, setObjects, setLoading, folder_tree.at(-1)!.id)
+            .then(() => console.log("Files fetched"));
     }, [ owner, provider ]);
 
     useEffect(() => {
@@ -214,6 +275,13 @@ export default function DrivesProviderOwner() {
             modals.close(modal_id);
         }
     }, [ uploading, modal_id ]);
+
+    useEffect(() => {
+        if (!folder_tree.every((v, i) => v === previous_folder[i]) || folder_tree.length !== previous_folder.length) {
+            setPreviousFolder(folder_tree);
+            refreshFiles(provider as StorageProvider, owner!, setObjects, setLoading, folder_tree.at(-1)!.id);
+        }
+    }, [ folder_tree, previous_folder ]);
 
     return (
         <>
@@ -254,17 +322,81 @@ export default function DrivesProviderOwner() {
                 </PageHeader>
                 <Grid columns={ 5 } gutter={ "lg" }>
                     <GridCol span={ 5 } key={ "toolbar" }>
-                        <Group>
-                            <ActionIcon variant={ "outline" }>
-                                <IconFolderPlus size={ 20 }/>
-                            </ActionIcon>
-                            <ActionIcon variant={ "outline" }>
-                                <IconFilePlus size={ 20 }/>
-                            </ActionIcon>
-                            <ActionIcon variant={ "light" } ml={ "auto" }>
-                                <IconRefresh size={ 20 }/>
-                            </ActionIcon>
-                        </Group>
+                        <Stack>
+                            <Group wrap={ "nowrap" }>
+                                <ActionIcon variant={ "subtle" }
+                                            disabled={ folder_tree.length === 1 }
+                                            onClick={ () => setFolderTree((prev) => prev.slice(0, -1)) }>
+                                    <IconChevronLeft size={ 20 }/>
+                                </ActionIcon>
+                                <Breadcrumbs className={ "!flex-nowrap truncate" }>
+                                    {
+                                        folder_tree.map((folder, index) => {
+                                            if (folder_tree.length > 3) {
+                                                if (index === 1) {
+                                                    return (
+                                                        <Text key={ index }>
+                                                            ...
+                                                        </Text>
+                                                    );
+                                                }
+                                                if (index !== 0 && index < folder_tree.length - 2) {
+                                                    return null;
+                                                }
+                                            }
+
+                                            return (
+                                                <Anchor key={ index }
+                                                        href={ "#" }
+                                                        truncate
+                                                        title={ folder.name === "root" ? "Home" : folder.name }
+                                                        onClick={ () => setFolderTree((prev) => prev.slice(
+                                                            0,
+                                                            index + 1,
+                                                        )) }>
+                                                    { folder.name === "root" ? "Home" : folder.name }
+                                                </Anchor>
+                                            );
+                                        })
+                                    }
+                                </Breadcrumbs>
+                            </Group>
+                            <Group>
+                                <ActionIcon variant={ "outline" } onClick={ () => modals.open({
+                                    modalId:             "create-folder",
+                                    size:                "36rem",
+                                    closeOnClickOutside: true,
+                                    withCloseButton:     true,
+                                    title:               <Title order={ 4 }>Create a new folder</Title>,
+                                    children:            <CreateFolderModal owner={ owner! }
+                                                                            provider={ provider as StorageProvider }
+                                                                            refresh={ async () => {
+                                                                                await refreshFiles(
+                                                                                    provider as StorageProvider,
+                                                                                    owner!,
+                                                                                    setObjects,
+                                                                                    setLoading,
+                                                                                    folder_tree.at(-1)!.id,
+                                                                                );
+                                                                                modals.close("create-folder");
+                                                                            } }
+                                                                            parent={ folder_tree.at(-1)!.id }/>,
+                                }) }>
+                                    <IconFolderPlus size={ 20 }/>
+                                </ActionIcon>
+                                <ActionIcon variant={ "light" }
+                                            ml={ "auto" }
+                                            onClick={ () => refreshFiles(
+                                                provider as StorageProvider,
+                                                owner!,
+                                                setObjects,
+                                                setLoading,
+                                                folder_tree.at(-1)!.id,
+                                            ) }>
+                                    <IconRefresh size={ 20 }/>
+                                </ActionIcon>
+                            </Group>
+                        </Stack>
                     </GridCol>
                     {
                         loading && (
@@ -291,6 +423,8 @@ export default function DrivesProviderOwner() {
                                                        openWithPreferredApp={ openWithPreferredApp }
                                                        openWithOnlineApp={ openWithOnlineApp }
                                                        openWithNativeApp={ openWithNativeApp }
+                                                       setFolderTree={ setFolderTree }
+                                                       settings={ settings }
                                     />
                                 </>
                             );

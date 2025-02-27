@@ -3,6 +3,7 @@ import { modals } from "@mantine/modals";
 import { fetch } from "@tauri-apps/plugin-http";
 import { createElement, Dispatch, SetStateAction } from "react";
 import { OpenWithNativeAppModal } from "../components/open-with-native-app-modal.tsx";
+import { ExtendedGoogleFile } from "../providers/google-provider.tsx";
 import { ProviderData, StorageProvider } from "../tauri-bindings.ts";
 import { State } from "../utility/state.ts";
 import { DriveFile } from "./drive-file.ts";
@@ -67,6 +68,38 @@ export abstract class Provider extends OAuthProvider {
         file: DriveFile,
         modal: TrackableModalInfo,
     ): Promise<string | undefined>;
+
+    /**
+     * Get extended file information
+     * @param {string} owner
+     * @param {DriveFile} file
+     * @returns {Promise<ExtendedGoogleFile | undefined>}
+     */
+    public abstract getFile(owner: string, file: DriveFile): Promise<DriveFile | undefined>;
+
+    /**
+     * Creates a folder in the remote drive.
+     * @param {string} owner - The owner of the provider.
+     * @param {string} parent - The parent folder to create the new folder in, or the root folder if not provided.
+     * @param {string} folder_name - The name of the new folder.
+     * @returns {Promise<DriveFile | undefined>}
+     */
+    public abstract createFolder(owner: string, parent: string, folder_name: string): Promise<DriveFile | undefined>;
+
+    /**
+     * Uploads a file to the remote drive upon native app closing.
+     * @param {string} owner - The owner of the provider.
+     * @param {string} file_path - The path to the file to upload.
+     * @param {TrackableModalInfo | undefined} modal - The modal to update with progress.
+     * @param {DriveFile | undefined} file - If provided, the file to update.
+     * @returns {Promise<void>}
+     */
+    public abstract updateFile(
+        owner: string,
+        file_path: string,
+        modal?: TrackableModalInfo,
+        file?: DriveFile,
+    ): Promise<void>;
 
     /**
      * List files in a drive folder

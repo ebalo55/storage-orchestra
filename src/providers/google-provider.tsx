@@ -285,7 +285,7 @@ class GoogleProvider extends GoogleOAuth {
      * @param {string} owner - The owner of the provider.
      * @param {string} file_path - The path to the file to upload.
      * @param modal - The modal to update with progress.
-     * @param {DriveFile} file -If provided, the file to update.
+     * @param {DriveFile} file - If provided, the file to update.
      * @returns {Promise<void>}
      */
     public async updateFile(
@@ -383,6 +383,16 @@ class GoogleProvider extends GoogleOAuth {
 
             this.updateModalProgress(file_size, file_size, modal);
         }
+    }
+
+    public async createFolder(owner: string, parent: string, folder_name: string): Promise<DriveFile | undefined> {
+        const valid = await this.getValidProvider(owner);
+        if (!valid) {
+            return;
+        }
+        const {accessToken} = valid;
+
+        return await this.mkdir(accessToken, parent, folder_name);
     }
 
     /**
@@ -537,7 +547,11 @@ class GoogleProvider extends GoogleOAuth {
      * @param {string} folder_name - The name of the new folder.
      * @private
      */
-    private async mkdir(access_token: string, parent_folder: string, folder_name: string): Promise<any> {
+    private async mkdir(
+        access_token: string,
+        parent_folder: string,
+        folder_name: string,
+    ): Promise<DriveFile | undefined> {
         const response = await this.authorizedFetch("https://www.googleapis.com/drive/v3/files", access_token, {
             method:  "POST",
             headers: {
@@ -570,7 +584,7 @@ class GoogleProvider extends GoogleOAuth {
 
         console.log({cache: Array.from(this._cached_folders.entries())});
 
-        return result;
+        return result as DriveFile;
     }
 
     /**

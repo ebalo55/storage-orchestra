@@ -12,10 +12,10 @@ import {
     IconUserPlus,
 } from "@tabler/icons-react";
 import { useContextMenu } from "mantine-contextmenu";
-import { FC } from "react";
+import { Dispatch, FC, SetStateAction, useMemo } from "react";
 import classes from "../assets/context-menu.module.css";
 import { DOCUMENT_LIKE_MIMES, FOLDER_LIKE_MIMES, MAPPED_MIMES } from "../constants.ts";
-import { useSettings } from "../hooks/use-settings.ts";
+import { DriveFile } from "../interfaces/drive-file.ts";
 import { GoogleFile } from "../providers/google-provider.tsx";
 import { Settings, StorageProvider } from "../tauri-bindings.ts";
 
@@ -23,6 +23,7 @@ type OpenWithPreferredAppSignature = (
     file: GoogleFile,
     provider: StorageProvider,
     owner: string,
+    setFolder: Dispatch<SetStateAction<DriveFile[]>>,
     settings?: Settings,
 ) => Promise<void>;
 type openWithOnlineAppSignature = (file: GoogleFile, provider: StorageProvider) => Promise<void>
@@ -32,6 +33,8 @@ interface MyDriveObjectCardProps {
     object: GoogleFile;
     provider: StorageProvider;
     owner: string;
+    settings: Settings | undefined;
+    setFolderTree: Dispatch<SetStateAction<DriveFile[]>>,
     openWithPreferredApp: OpenWithPreferredAppSignature;
     openWithOnlineApp: openWithOnlineAppSignature;
     openWithNativeApp: openWithNativeAppSignature;
@@ -42,14 +45,21 @@ export const MyDriveObjectCard: FC<MyDriveObjectCardProps> = (
         object,
         provider,
         owner,
+        settings,
+        setFolderTree,
         openWithPreferredApp,
         openWithOnlineApp,
         openWithNativeApp,
     },
 ) => {
-    const Icon = MAPPED_MIMES[object.mimeType] || IconHelpHexagon;
+    const Icon = useMemo(() => {
+        if (MAPPED_MIMES[object.mimeType]) {
+            return MAPPED_MIMES[object.mimeType];
+        }
+        console.log("Unknown mime type", object.mimeType);
+        return IconHelpHexagon;
+    }, [ object.mimeType ]);
     const {showContextMenu} = useContextMenu();
-    const {settings} = useSettings();
 
     return (
         <GridCol span={ 1 }>
@@ -57,7 +67,7 @@ export const MyDriveObjectCard: FC<MyDriveObjectCardProps> = (
                   className={ "p-4 cursor-pointer select-none" }
                   withBorder
                   title={ object.name }
-                  onDoubleClick={ () => openWithPreferredApp(object, provider, owner, settings) }
+                  onDoubleClick={ () => openWithPreferredApp(object, provider, owner, setFolderTree, settings) }
                   onContextMenu={ showContextMenu([
                       {
                           key:       "open-with",
@@ -91,6 +101,7 @@ export const MyDriveObjectCard: FC<MyDriveObjectCardProps> = (
                       },
                       {
                           key:     "share",
+                          disabled: true,
                           icon:    <IconUserPlus size={ 18 }/>,
                           onClick: () => console.log("Share"),
                       },
@@ -109,6 +120,7 @@ export const MyDriveObjectCard: FC<MyDriveObjectCardProps> = (
                   ], {
                       classNames: {
                           item: classes.contextMenuItem,
+                          root: classes.contextMenu,
                       },
                   }) }
             >
