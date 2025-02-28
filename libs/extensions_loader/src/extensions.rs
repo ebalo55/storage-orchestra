@@ -17,7 +17,7 @@ pub trait Extension: Send + Sync {
     /// A description of the extension.
     fn description(&self) -> String;
     /// The entry point of the extension.
-    fn run(&self, app: AppHandle);
+    fn run(&self, app: AppHandle) -> Result<(), String>;
 }
 
 /// Loads a dynamic library and ensures it follows the `Extension` trait.
