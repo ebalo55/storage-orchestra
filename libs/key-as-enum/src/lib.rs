@@ -1,8 +1,8 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, DeriveInput, Data, Fields, Meta, Token};
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
+use syn::{Data, DeriveInput, Fields, Meta, Token, parse_macro_input};
 
 /// Derive macro for generating an enum with struct field names as variants,
 /// optionally accepting a `derive_extra` argument: `#[derive(KeysAsEnum)] #[derive_extra(Type)]`
@@ -29,7 +29,9 @@ pub fn keys_as_enum(input: TokenStream) -> TokenStream {
                         .parse2(meta_list.tokens)
                         .ok();
 
-                    if let Some(first_meta) = nested.and_then(|mut list| list.pop().map(|p| p.into_value())) {
+                    if let Some(first_meta) =
+                        nested.and_then(|mut list| list.pop().map(|p| p.into_value()))
+                    {
                         if let Meta::Path(path) = first_meta {
                             extra_derive = Some(quote!(#path));
                         }
@@ -103,18 +105,17 @@ pub fn keys_as_enum(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-
 /// Helper function to convert snake_case to PascalCase
 fn to_pascal_case(s: &str) -> String {
     s.split('_')
-     .map(|word| {
-         let mut chars = word.chars();
-         chars
-             .next()
-             .map(|c| c.to_uppercase().collect::<String>())
-             .unwrap_or_default()
-             + chars.as_str()
-     })
-     .collect::<Vec<String>>()
-     .join("")
+        .map(|word| {
+            let mut chars = word.chars();
+            chars
+                .next()
+                .map(|c| c.to_uppercase().collect::<String>())
+                .unwrap_or_default()
+                + chars.as_str()
+        })
+        .collect::<Vec<String>>()
+        .join("")
 }
