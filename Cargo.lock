@@ -92,8 +92,8 @@ name = "as-inner-serializable"
 version = "0.1.0"
 dependencies = [
  "quote",
-    "serde",
-    "specta",
+ "serde",
+ "specta",
  "syn 1.0.109",
 ]
 
@@ -5037,11 +5037,12 @@ dependencies = [
 name = "test-as-inner-serializable"
 version = "0.1.0"
 dependencies = [
-    "as-inner-serializable",
-    "serde",
-    "specta",
-    "tauri",
-    "tokio",
+ "as-inner-serializable",
+ "serde",
+ "serde_json",
+ "specta",
+ "tauri",
+ "tokio",
 ]
 
 [[package]]

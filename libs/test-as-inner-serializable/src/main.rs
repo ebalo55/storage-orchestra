@@ -32,6 +32,36 @@ mod tests {
         );
         assert_eq!(inner.skipped_arc_rwlock_field, "not-skipped");
     }
+
+    #[test]
+    fn test_ser_de() {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        runtime.block_on(async move {
+            let instance = TestStruct {
+                skipped_field: String::from("skipped"),
+                normal_field: 42,
+                skipped_option_field: Some(String::from("not-skipped")),
+                skipped_arc_rwlock_field: Arc::new(RwLock::new(String::from("not-skipped"))),
+            };
+
+            let json = serde_json::to_string(&instance).unwrap();
+            let deserialized = serde_json::from_str::<TestStruct>(&json).unwrap();
+
+            assert_eq!(json, r#"{"normal_field":42,"skipped_option_field":"not-skipped","skipped_arc_rwlock_field":"not-skipped"}"#);
+
+            assert_eq!(deserialized.normal_field, 42);
+            assert_eq!(
+                deserialized.skipped_option_field,
+                Some(String::from("not-skipped"))
+            );
+            assert_eq!(deserialized.skipped_arc_rwlock_field.read().await.to_string(), "not-skipped");
+            assert_eq!(deserialized.skipped_field, String::default());
+        });
+    }
 }
 
 fn main() {}
