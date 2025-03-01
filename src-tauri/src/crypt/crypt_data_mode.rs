@@ -100,7 +100,7 @@ impl CryptDataMode {
     ///
     /// Whether the data should be hashed
     pub fn should_hash(mode: u8) -> bool {
-        mode & CryptDataMode::Hash as u8 != 0
+        mode & CryptDataMode::Hash as u8 == CryptDataMode::Hash as u8
     }
 
     /// Check if the data should be encoded
@@ -113,7 +113,7 @@ impl CryptDataMode {
     ///
     /// Whether the data should be encoded
     pub fn should_encode(mode: u8) -> bool {
-        mode & CryptDataMode::Encode as u8 != 0
+        mode & CryptDataMode::Encode as u8 == CryptDataMode::Encode as u8
     }
 
     /// Check if the data should be encrypted
@@ -126,7 +126,7 @@ impl CryptDataMode {
     ///
     /// Whether the data should be encrypted
     pub fn should_encrypt(mode: u8) -> bool {
-        mode & CryptDataMode::Encrypt as u8 != 0
+        mode & CryptDataMode::Encrypt as u8 == CryptDataMode::Encrypt as u8
     }
 
     /// Check if the data should be HMACed
@@ -139,7 +139,7 @@ impl CryptDataMode {
     ///
     /// Whether the data should be HMACed
     pub fn should_hmac(mode: u8) -> bool {
-        mode & CryptDataMode::Hmac as u8 != 0
+        mode & CryptDataMode::Hmac as u8 == CryptDataMode::Hmac as u8
     }
 
     /// Convert a string to the working modes
@@ -191,7 +191,8 @@ impl CryptDataMode {
     ///
     /// Whether the data has been modified during serialization
     pub fn has_been_modified_during_serialization(mode: u8) -> bool {
-        mode & CryptDataMode::ModifiedDuringSerialization as u8 != 0
+        mode & CryptDataMode::ModifiedDuringSerialization as u8
+            == CryptDataMode::ModifiedDuringSerialization as u8
     }
 
     /// Check if the data is a password hash
@@ -204,7 +205,7 @@ impl CryptDataMode {
     ///
     /// Whether the data is a password hash
     pub fn is_password_hash(mode: u8) -> bool {
-        mode & CryptDataMode::PasswordHash as u8 != 0
+        mode & CryptDataMode::PasswordHash as u8 == CryptDataMode::PasswordHash as u8
     }
 
     /// Check if the data is a signature hash
@@ -217,7 +218,7 @@ impl CryptDataMode {
     ///
     /// Whether the data is a signature hash
     pub fn is_signature_hash(mode: u8) -> bool {
-        mode & CryptDataMode::SignatureHash as u8 != 0
+        mode & CryptDataMode::SignatureHash as u8 == CryptDataMode::SignatureHash as u8
     }
 }
 
@@ -228,6 +229,7 @@ mod tests {
     #[test]
     fn test_strip_string_mode() {
         assert_eq!(CryptDataMode::strip_string_mode("hash:data"), "data");
+        assert_eq!(CryptDataMode::strip_string_mode("hmac:data"), "data");
         assert_eq!(CryptDataMode::strip_string_mode("encode:data"), "data");
         assert_eq!(CryptDataMode::strip_string_mode("secret:data"), "data");
         assert_eq!(CryptDataMode::strip_string_mode("data"), "data");
@@ -271,6 +273,12 @@ mod tests {
     }
 
     #[test]
+    fn test_should_hmac() {
+        assert!(CryptDataMode::should_hmac(0b1000));
+        assert!(!CryptDataMode::should_hmac(0b0001));
+    }
+
+    #[test]
     fn test_from_string() {
         let modes = CryptDataMode::from_string("secret:data");
         assert!(modes.contains(&CryptDataMode::Encrypt));
@@ -291,5 +299,17 @@ mod tests {
         assert!(!CryptDataMode::has_been_modified_during_serialization(
             0b0000_0001
         ));
+    }
+
+    #[test]
+    fn test_is_password_hash() {
+        assert!(CryptDataMode::is_password_hash(0b0001_0001));
+        assert!(!CryptDataMode::is_password_hash(0b0000_0001));
+    }
+
+    #[test]
+    fn test_is_signature_hash() {
+        assert!(CryptDataMode::is_signature_hash(0b0010_1000));
+        assert!(!CryptDataMode::is_signature_hash(0b0000_1000));
     }
 }

@@ -18,6 +18,17 @@ pub static ENCRYPTION_NONCE_LENGTH: usize = 24;
 ///
 /// The encrypted data.
 pub fn encrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, String> {
+    if key.len() != ENCRYPTION_KEY_LENGTH {
+        error!(
+            "Key is not the correct length, it must be {} bytes",
+            ENCRYPTION_KEY_LENGTH
+        );
+        return Err(format!(
+            "Key is not the correct length, it must be {} bytes",
+            ENCRYPTION_KEY_LENGTH
+        ));
+    }
+
     debug!("Encrypting data");
 
     let cipher = XChaCha20Poly1305::new(key.into());
@@ -89,15 +100,65 @@ pub fn decrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tracing_subscriber;
+
+    fn init() {
+        let _ = tracing_subscriber::fmt::try_init();
+    }
 
     #[test]
-    fn test_encryption_can_be_decrypted() {
+    fn test_encrypt_with_invalid_key_length() {
+        init();
+        let key = vec![0; ENCRYPTION_KEY_LENGTH - 1];
+        let data = b"Hello, world!";
+        let result = encrypt(data, &key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_decrypt_with_invalid_key_length() {
+        init();
+        let key = vec![0; ENCRYPTION_KEY_LENGTH - 1];
+        let data = vec![0; ENCRYPTION_NONCE_LENGTH + 1];
+        let result = decrypt(&data, &key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_decrypt_with_short_data() {
+        init();
+        let key = vec![0; ENCRYPTION_KEY_LENGTH];
+        let data = vec![0; ENCRYPTION_NONCE_LENGTH - 1];
+        let result = decrypt(&data, &key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_encrypt_and_decrypt() {
+        init();
         let key = vec![0; ENCRYPTION_KEY_LENGTH];
         let data = b"Hello, world!";
-
         let encrypted = encrypt(data, &key).unwrap();
         let decrypted = decrypt(&encrypted, &key).unwrap();
-
         assert_eq!(data, decrypted.as_slice());
+    }
+
+    #[test]
+    fn test_encrypt_with_valid_key() {
+        init();
+        let key = vec![0; ENCRYPTION_KEY_LENGTH];
+        let data = b"Hello, world!";
+        let result = encrypt(data, &key);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_decrypt_with_valid_data() {
+        init();
+        let key = vec![0; ENCRYPTION_KEY_LENGTH];
+        let data = b"Hello, world!";
+        let encrypted = encrypt(data, &key).unwrap();
+        let result = decrypt(&encrypted, &key);
+        assert!(result.is_ok());
     }
 }

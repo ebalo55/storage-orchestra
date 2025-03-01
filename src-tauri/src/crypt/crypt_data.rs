@@ -695,4 +695,78 @@ mod tests {
         let deserialized_raw_data = deserialized.get_raw_data(Some(key)).unwrap();
         assert_eq!(original_raw_data, deserialized_raw_data);
     }
+
+    #[test]
+    fn test_new_with_key() {
+        let data = vec![1, 2, 3];
+        let mode = CryptDataMode::Encode as u8;
+        let key = b"supersecretkey";
+        let crypt_data = CryptData::new(data.clone(), mode, Some(key), None);
+        assert_eq!(crypt_data.raw_data.unwrap(), data);
+        assert!(!crypt_data.data.is_empty());
+        assert_eq!(crypt_data.mode, mode);
+    }
+
+    #[test]
+    fn test_hmac() {
+        let key = b"supersecretkey";
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Hmac as u8, Some(key), None);
+        assert!(!data.data.is_empty());
+    }
+
+    #[test]
+    fn test_hash_with_salt() {
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Hash as u8, None, None);
+        data.salt = Some(vec![4, 5, 6]);
+        data.hash();
+        assert!(!data.data.is_empty());
+    }
+
+    #[test]
+    fn test_encode_with_encryption() {
+        let key = b"supersecretkey";
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encrypt as u8, Some(key), None);
+        data.encode();
+        assert!(!data.data.is_empty());
+    }
+
+    #[test]
+    fn test_encrypt_with_salt() {
+        let key = b"supersecretkey";
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encrypt as u8, Some(key), None);
+        data.salt = Some(vec![4, 5, 6]);
+        data.encrypt(key).unwrap();
+        assert!(!data.data.is_empty());
+    }
+
+    #[test]
+    fn test_decrypt_without_salt() {
+        let key = b"supersecretkey";
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encrypt as u8, Some(key), None);
+        data.salt = None;
+        let result = data.decrypt(key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_decode_with_invalid_data() {
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encode as u8, None, None);
+        data.data = vec![255, 255, 255]; // Invalid base64 data
+        let result = data.decode();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_raw_data_without_key() {
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encode as u8, None, None);
+        let raw_data = data.get_raw_data(None).unwrap();
+        assert_eq!(raw_data, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_get_raw_data_as_string_without_key() {
+        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encode as u8, None, None);
+        let raw_data_str = data.get_raw_data_as_string(None).unwrap();
+        assert_eq!(raw_data_str.as_bytes(), &[1, 2, 3]);
+    }
 }

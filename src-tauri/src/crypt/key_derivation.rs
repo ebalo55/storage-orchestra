@@ -14,6 +14,37 @@ pub struct DerivedKey {
 }
 
 impl DerivedKey {
+    /// Helper function to derive a key.
+    ///
+    /// # Arguments
+    ///
+    /// * `password` - The password to derive the key from.
+    /// * `salt` - The salt to use for the derivation. If `None`, a random salt will be generated.
+    /// * `key_length` - The length of the key to derive.
+    ///
+    /// # Returns
+    ///
+    /// The derived key.
+    fn derive_key(password: &[u8], salt: Option<&[u8]>, key_length: u8) -> Result<Self, String> {
+        if password.is_empty() {
+            return Err("Password cannot be empty".to_string());
+        }
+        if key_length <= 0 {
+            return Err("Key length must be greater than 0".to_string());
+        }
+
+        let salt = make_salt_if_missing(salt);
+        let hk = Hkdf::<Sha3_512>::new(Some(&salt), password);
+
+        let mut okm = vec![0u8; key_length as usize];
+        hk.expand(&[0u8], &mut okm).map_err(|err| err.to_string())?;
+
+        Ok(DerivedKey {
+            key: okm.to_vec(),
+            salt,
+        })
+    }
+
     /// Derives a key from a password.
     ///
     /// # Arguments
@@ -26,16 +57,7 @@ impl DerivedKey {
     ///
     /// The derived key.
     pub fn new(password: &str, salt: Option<&[u8]>, key_length: u8) -> Result<Self, String> {
-        let salt = make_salt_if_missing(salt);
-        let hk = Hkdf::<Sha3_512>::new(Some(&salt), password.as_bytes());
-
-        let mut okm = vec![0u8; key_length as usize];
-        hk.expand(&[0u8], &mut okm).map_err(|err| err.to_string())?;
-
-        Ok(DerivedKey {
-            key: okm,
-            salt: salt.to_vec(),
-        })
+        Self::derive_key(password.as_bytes(), salt, key_length)
     }
 
     /// Derives a key from a password.
@@ -54,16 +76,7 @@ impl DerivedKey {
         salt: Option<&[u8]>,
         key_length: u8,
     ) -> Result<Self, String> {
-        let salt = make_salt_if_missing(salt);
-        let hk = Hkdf::<Sha3_512>::new(Some(&salt), password);
-
-        let mut okm = vec![0u8; key_length as usize];
-        hk.expand(&[0u8], &mut okm).map_err(|err| err.to_string())?;
-
-        Ok(DerivedKey {
-            key: okm,
-            salt: salt.to_vec(),
-        })
+        Self::derive_key(password, salt, key_length)
     }
 
     /// Derives a key from a password vector.
@@ -82,8 +95,7 @@ impl DerivedKey {
         salt: Option<&[u8]>,
         key_length: u8,
     ) -> Result<Self, String> {
-        let password = String::from_utf8_lossy(password.as_slice()).to_string();
-        DerivedKey::new(password.as_str(), salt, key_length)
+        Self::derive_key(&password, salt, key_length)
     }
 }
 
@@ -92,33 +104,70 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_new() {
-        let password = "password";
-        let key_length = 32;
-        let derived_key = DerivedKey::new(password, None, key_length).unwrap();
-        assert_eq!(derived_key.key.len(), key_length as usize);
-        assert_eq!(derived_key.salt.len(), 32); // Assuming the salt length is 32 bytes
-    }
-
-    #[test]
-    fn test_from_vec() {
-        let password = b"password".to_vec();
-        let key_length = 32;
-        let derived_key = DerivedKey::from_vec(password, None, key_length).unwrap();
-        assert_eq!(derived_key.key.len(), key_length as usize);
-        assert_eq!(derived_key.salt.len(), 32); // Assuming the salt length is 32 bytes
-    }
-
-    #[test]
-    fn test_multiple_derivation_with_same_password_and_salt_match() {
+    fn test_new_with_salt() {
         let password = "password";
         let key_length = 32;
         let salt = [0u8; 32];
+        let derived_key = DerivedKey::new(password, Some(&salt), key_length).unwrap();
+        assert_eq!(derived_key.key.len(), key_length as usize);
+        assert_eq!(derived_key.salt, salt);
+    }
 
-        let derived_key_1 = DerivedKey::new(password, Some(&salt), key_length).unwrap();
-        let derived_key_2 = DerivedKey::new(password, Some(&salt), key_length).unwrap();
+    #[test]
+    fn test_new_with_invalid_key_length() {
+        let password = "password";
+        let key_length = 0; // Invalid key length
+        let result = DerivedKey::new(password, None, key_length);
+        assert!(result.is_err());
+    }
 
-        assert_eq!(derived_key_1.key, derived_key_2.key);
-        assert_eq!(derived_key_1.salt, derived_key_2.salt);
+    #[test]
+    fn test_from_byte_key_with_salt() {
+        let password = b"password";
+        let key_length = 32;
+        let salt = [0u8; 32];
+        let derived_key = DerivedKey::from_byte_key(password, Some(&salt), key_length).unwrap();
+        assert_eq!(derived_key.key.len(), key_length as usize);
+        assert_eq!(derived_key.salt, salt);
+    }
+
+    #[test]
+    fn test_from_byte_key_with_invalid_key_length() {
+        let password = b"password";
+        let key_length = 0; // Invalid key length
+        let result = DerivedKey::from_byte_key(password, None, key_length);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_from_vec_with_salt() {
+        let password = b"password".to_vec();
+        let key_length = 32;
+        let salt = [0u8; 32];
+        let derived_key = DerivedKey::from_vec(password, Some(&salt), key_length).unwrap();
+        assert_eq!(derived_key.key.len(), key_length as usize);
+        assert_eq!(derived_key.salt, salt);
+    }
+
+    #[test]
+    fn test_from_vec_with_invalid_key_length() {
+        let password = b"password".to_vec();
+        let key_length = 0; // Invalid key length
+        let result = DerivedKey::from_vec(password, None, key_length);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_multiple_derivation_with_different_salt() {
+        let password = "password";
+        let key_length = 32;
+        let salt1 = [0u8; 32];
+        let salt2 = [1u8; 32];
+
+        let derived_key_1 = DerivedKey::new(password, Some(&salt1), key_length).unwrap();
+        let derived_key_2 = DerivedKey::new(password, Some(&salt2), key_length).unwrap();
+
+        assert_ne!(derived_key_1.key, derived_key_2.key);
+        assert_ne!(derived_key_1.salt, derived_key_2.salt);
     }
 }
