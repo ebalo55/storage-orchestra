@@ -10,6 +10,7 @@ pub use extensions::Extension;
 pub use hash_whitelist::hash_file;
 use libloading::library_filename;
 use std::fs::read_dir;
+use std::sync::Arc;
 pub use tauri;
 use tauri::AppHandle;
 use tracing::{error, info, warn};
@@ -73,7 +74,7 @@ pub fn load_extensions(app: AppHandle) -> Result<(), String> {
             );
             continue;
         }
-        let extension = extension?;
+        let extension = Arc::new(extension?);
         info!(
             "Loaded extension '{} v{}' by {}",
             extension.name(),
@@ -81,14 +82,16 @@ pub fn load_extensions(app: AppHandle) -> Result<(), String> {
             extension.author()
         );
 
-        let _ = extension.run(
-            make_light_pointer(app.clone()),
-            make_light_pointer(tauri::async_runtime::handle()),
-        );
-
         let mut extensions = EXTENSIONS.write().unwrap();
-        extensions.push(extension);
+        extensions.push(extension.clone());
         drop(extensions);
+
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(err) = extension.run(app.clone()) {
+                error!("Failed to run extension '{}': {}", extension.name(), err);
+            }
+        });
     }
 
     if available_extensions_number == 0 {
