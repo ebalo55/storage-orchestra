@@ -88,11 +88,11 @@ pub fn as_result_enum(input: TokenStream) -> TokenStream {
 
     let derive_macros = if let Some(extra) = extra_derive {
         quote! {
-            #[derive(Debug, Clone, Serialize, Deserialize, #extra)]
+            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, #extra)]
         }
     } else {
         quote! {
-            #[derive(Debug, Clone, Serialize, Deserialize)]
+            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
         }
     };
 
@@ -156,4 +156,55 @@ fn strip_option_arc_rwlock(ty: &Type) -> Type {
         }
     }
     ty.clone()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quote::ToTokens;
+    use syn::{Type, parse_quote};
+
+    #[test]
+    fn test_strip_option_arc_rwlock() {
+        let ty: Type = parse_quote!(Option<Arc<RwLock<String>>>);
+        let stripped = strip_option_arc_rwlock(&ty);
+        let expected: Type = parse_quote!(Option<String>);
+        assert_eq!(
+            stripped.to_token_stream().to_string(),
+            expected.to_token_stream().to_string()
+        );
+
+        let ty: Type = parse_quote!(Arc<RwLock<String>>);
+        let stripped = strip_option_arc_rwlock(&ty);
+        let expected: Type = parse_quote!(String);
+        assert_eq!(
+            stripped.to_token_stream().to_string(),
+            expected.to_token_stream().to_string()
+        );
+
+        let ty: Type = parse_quote!(Option<String>);
+        let stripped = strip_option_arc_rwlock(&ty);
+        let expected: Type = parse_quote!(Option<String>);
+        assert_eq!(
+            stripped.to_token_stream().to_string(),
+            expected.to_token_stream().to_string()
+        );
+
+        let ty: Type = parse_quote!(String);
+        let stripped = strip_option_arc_rwlock(&ty);
+        let expected: Type = parse_quote!(String);
+        assert_eq!(
+            stripped.to_token_stream().to_string(),
+            expected.to_token_stream().to_string()
+        );
+    }
+
+    #[test]
+    fn test_to_pascal_case() {
+        assert_eq!(to_pascal_case("test_case"), "TestCase");
+        assert_eq!(to_pascal_case("another_test_case"), "AnotherTestCase");
+        assert_eq!(to_pascal_case("TestCase"), "TestCase");
+        assert_eq!(to_pascal_case("testcase"), "Testcase");
+        assert_eq!(to_pascal_case(""), "");
+    }
 }

@@ -5046,6 +5046,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-as-result-enum"
+version = "0.1.0"
+dependencies = [
+ "as-result-enum",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "thin-slice"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
