@@ -1,12 +1,9 @@
-use crate::crypt::{CryptData, CryptDataMode, DerivedKey, ENCRYPTION_KEY_LENGTH};
-use crate::state::state::AppState;
+use crate::crypt::CryptData;
 use crate::state::storage_provider::StorageProvider;
 use as_inner_serializable::AsInnerSerializable;
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use specta::{Type, specta};
+use specta::Type;
 use std::sync::Arc;
-use tauri::State;
 use tokio::sync::RwLock;
 
 /// The data of a storage provider

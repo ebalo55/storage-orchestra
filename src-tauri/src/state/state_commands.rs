@@ -9,7 +9,7 @@ use specta::specta;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::path::BaseDirectory;
-use tauri::{App, AppHandle, Manager, State, command};
+use tauri::{AppHandle, Manager, State, command};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
@@ -383,7 +383,7 @@ async fn check_password(psw: String, state_file: PathBuf) -> Result<AppStateDeep
         .open(state_file)
         .await
         .map_err(|err| err.to_string())?;
-    let mut stored_state = serde_json::from_reader::<_, AppStateDeep>(state_file.into_std().await)
+    let stored_state = serde_json::from_reader::<_, AppStateDeep>(state_file.into_std().await)
         .map_err(|err| err.to_string())?;
 
     if crypt::verify(
@@ -476,7 +476,7 @@ mod tests {
     use crate::state::settings::Settings;
     use crate::state::settings::theme::{Theme, ThemeSettings};
     use crate::state::state::AppStateDeep;
-    use tauri::Manager;
+    use tauri::{App, Manager};
     use tokio::sync::RwLock;
 
     fn build() -> App {

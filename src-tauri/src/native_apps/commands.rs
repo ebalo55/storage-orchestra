@@ -1,16 +1,12 @@
-use crate::native_apps::constants::PROCESS_WAKEUP_INTERVAL;
 use crate::native_apps::detect_active_process::get_process_using_file;
-use crate::native_apps::open_file::open_file;
 use crate::native_apps::watch_process_event::WatchProcessEvent;
 use crate::state::state::AppState;
-use serde::{Deserialize, Serialize};
-use specta::{Type, specta};
+use specta::specta;
 use sysinfo::{ProcessRefreshKind, RefreshKind, System};
 use tauri::ipc::Channel;
-use tauri::{AppHandle, State, command};
-use tokio::fs;
+use tauri::{State, command};
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 /// Watch a file for the default application to open it and return its content when the application
 /// closes
@@ -61,7 +57,7 @@ pub async fn watch_native_open(
 
     info!("Process {} opened file {}", pid, file_path);
 
-    let mut system = System::new_with_specifics(
+    let system = System::new_with_specifics(
         RefreshKind::default().with_processes(ProcessRefreshKind::everything()),
     );
     let process = system.process(pid);

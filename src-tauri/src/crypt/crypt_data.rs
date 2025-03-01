@@ -1,11 +1,8 @@
 use crate::crypt::encoding::{decode, encode};
 use crate::crypt::encryption::{decrypt, encrypt};
 use crate::crypt::hash::hash;
-use crate::crypt::{
-    CryptDataMode, DerivedKey, ENCRYPTION_KEY_LENGTH, ENCRYPTION_NONCE_LENGTH, hmac,
-};
+use crate::crypt::{CryptDataMode, DerivedKey, ENCRYPTION_KEY_LENGTH, hmac};
 use crate::state::PASSWORD;
-use crate::state::state::AppState;
 use base64ct::Encoding;
 use chacha20poly1305::KeyInit;
 use chacha20poly1305::aead::Aead;
@@ -16,7 +13,7 @@ use sha3::Digest;
 use specta::{Type, specta};
 use std::cmp::PartialEq;
 use std::fmt::{Debug, Formatter};
-use tauri::{State, command};
+use tauri::command;
 use tracing::{debug, error};
 
 /// Represent some data that have been managed cryptographically
@@ -542,7 +539,7 @@ mod tests {
 
     #[test]
     fn test_hash() {
-        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Hash as u8, None, None);
+        let data = CryptData::new(vec![1, 2, 3], CryptDataMode::Hash as u8, None, None);
         assert!(!data.data.is_empty());
         assert!(verify(
             vec![1, 2, 3].as_slice(),
@@ -561,7 +558,7 @@ mod tests {
     #[test]
     fn test_encrypt() {
         let key = b"supersecretkey";
-        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encrypt as u8, Some(key), None);
+        let data = CryptData::new(vec![1, 2, 3], CryptDataMode::Encrypt as u8, Some(key), None);
         assert!(!data.data.is_empty());
         assert!(data.salt.is_some());
     }
@@ -710,7 +707,7 @@ mod tests {
     #[test]
     fn test_hmac() {
         let key = b"supersecretkey";
-        let mut data = CryptData::new(vec![1, 2, 3], CryptDataMode::Hmac as u8, Some(key), None);
+        let data = CryptData::new(vec![1, 2, 3], CryptDataMode::Hmac as u8, Some(key), None);
         assert!(!data.data.is_empty());
     }
 

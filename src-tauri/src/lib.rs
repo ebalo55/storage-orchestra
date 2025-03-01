@@ -69,7 +69,7 @@ pub fn run() -> Result<(), String> {
     sysinfo::set_open_files_limit(0);
     setup_tracing()?;
 
-    let mut builder = Builder::<tauri::Wry>::new()
+    let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
             start_server,
             state::init_state,

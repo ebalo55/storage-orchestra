@@ -30,27 +30,29 @@ pub trait Extension: Send + Sync {
 ///
 /// A `Result` containing the extension, or an error message if the extension could not be loaded.
 pub unsafe fn load_extension(path: &str) -> Result<Box<dyn Extension>, String> {
-    let lib = Library::new(path).map_err(|e| e.to_string())?;
+    unsafe {
+        let lib = Library::new(path).map_err(|e| e.to_string())?;
 
-    let constructor = lib
-        .get::<CreateExtensionFn>(b"create_extension")
-        .map_err(|e| e.to_string())?;
+        let constructor = lib
+            .get::<CreateExtensionFn>(b"create_extension")
+            .map_err(|e| e.to_string())?;
 
-    // Call the constructor to obtain a pointer to Box<dyn Extension>
-    let ext_box_ptr = constructor();
-    if ext_box_ptr.is_null() {
-        return Err("Null pointer returned from create_extension".to_owned());
+        // Call the constructor to obtain a pointer to Box<dyn Extension>
+        let ext_box_ptr = constructor();
+        if ext_box_ptr.is_null() {
+            return Err("Null pointer returned from create_extension".to_owned());
+        }
+
+        // Reconstruct the Box<Box<dyn Extension>> from the raw pointer.
+        let outer_box: Box<Box<dyn Extension>> = Box::from_raw(ext_box_ptr);
+
+        // Now, the inner box is our Box<dyn Extension>
+        let inner_box: Box<dyn Extension> = *outer_box;
+
+        let mut libraries = LIBRARIES.write().unwrap();
+        libraries.push(lib);
+        drop(libraries);
+
+        Ok(inner_box)
     }
-
-    // Reconstruct the Box<Box<dyn Extension>> from the raw pointer.
-    let outer_box: Box<Box<dyn Extension>> = Box::from_raw(ext_box_ptr);
-
-    // Now, the inner box is our Box<dyn Extension>
-    let inner_box: Box<dyn Extension> = *outer_box;
-
-    let mut libraries = LIBRARIES.write().unwrap();
-    libraries.push(lib);
-    drop(libraries);
-
-    Ok(inner_box)
 }

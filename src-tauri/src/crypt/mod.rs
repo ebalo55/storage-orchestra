@@ -14,4 +14,4 @@ pub use hash::*;
 pub use hmac::*;
 pub use key_derivation::*;
 
-pub use encryption::{ENCRYPTION_KEY_LENGTH, ENCRYPTION_NONCE_LENGTH};
+pub use encryption::ENCRYPTION_KEY_LENGTH;

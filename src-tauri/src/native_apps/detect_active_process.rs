@@ -1,12 +1,9 @@
 use crate::native_apps::constants::PROCESS_WAKEUP_INTERVAL;
 use crate::native_apps::open_file::open_file;
 use crate::native_apps::watch_process_event::WatchProcessEvent;
-use std::process::Command;
 use sysinfo::Pid;
-use tauri::AppHandle;
 use tauri::ipc::Channel;
-use tauri_plugin_shell::ShellExt;
-use tracing::{debug, error, warn};
+use tracing::debug;
 
 /// Opens a file using the default app and detects the process that opened it.
 ///

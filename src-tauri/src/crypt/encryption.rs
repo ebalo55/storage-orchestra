@@ -1,7 +1,6 @@
 use crate::crypt::salt::make_salt_with_length_if_missing;
 use chacha20poly1305::aead::{Aead, Nonce};
 use chacha20poly1305::{KeyInit, XChaCha20Poly1305};
-use std::io::Read;
 use tracing::{debug, error};
 
 pub static ENCRYPTION_KEY_LENGTH: usize = 32;

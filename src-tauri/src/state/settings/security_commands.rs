@@ -9,12 +9,11 @@ use crate::utility::get_json_value::get_json_value;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use specta::{Type, specta};
-use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, State, command};
-use tokio::sync::{RwLock, RwLockWriteGuard};
+use tokio::sync::RwLock;
 use tracing::{error, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type)]
@@ -164,13 +163,13 @@ pub async fn update_password(
     .await?;
 
     // sort the delayed items, ensure SignatureHash is last
-    let mut delayed_items = delayed_items.write().await;
+    let delayed_items = delayed_items.write().await;
 
     // update the delayed items
     for crypt_data in delayed_items.iter() {
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        let mut readable_crypt_data = crypt_data.read().await;
+        let readable_crypt_data = crypt_data.read().await;
 
         let modes = readable_crypt_data.get_modes();
         let new_psw = new_password.clone();

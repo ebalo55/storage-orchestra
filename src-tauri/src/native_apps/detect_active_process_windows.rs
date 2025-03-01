@@ -3,7 +3,7 @@
 use crate::native_apps::watch_process_event::WatchProcessEvent;
 use futures_util::{StreamExt, stream};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 use std::{
     ffi::{c_uchar, c_ulong, c_ushort, c_void},
     marker::PhantomData,
@@ -14,10 +14,8 @@ use std::{
 use sysinfo::{Pid, System};
 use tauri::ipc::Channel;
 use tokio::sync::Semaphore;
-use tracing::{debug, error, info, trace, warn};
-use windows::Win32::System::Threading::{
-    PROCESS_DUP_HANDLE, PROCESS_QUERY_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION,
-};
+use tracing::{debug, info, trace};
+use windows::Win32::System::Threading::PROCESS_DUP_HANDLE;
 use windows::{
     Wdk::{
         Foundation::{
@@ -26,11 +24,8 @@ use windows::{
         System::SystemInformation::{NtQuerySystemInformation, SYSTEM_INFORMATION_CLASS},
     },
     Win32::{
-        Foundation::{
-            BOOL, CloseHandle, DUPLICATE_CLOSE_SOURCE, DUPLICATE_SAME_ACCESS, DuplicateHandle,
-            HANDLE, NTSTATUS,
-        },
-        System::Threading::{GetCurrentProcess, OpenProcess, PROCESS_ALL_ACCESS},
+        Foundation::{BOOL, CloseHandle, HANDLE, NTSTATUS},
+        System::Threading::{GetCurrentProcess, OpenProcess},
     },
 };
 
@@ -50,20 +45,22 @@ pub unsafe fn _NtDuplicateObject<P0>(
 where
     P0: windows::core::IntoParam<HANDLE>,
 {
-    let status = NtDuplicateObject(
-        source_process_handle.into_param().abi(),
-        source_handle.into_param().abi(),
-        target_process_handle.into_param().abi(),
-        mem::transmute(target_handle.unwrap_or(::std::ptr::null_mut())),
-        access_mask,
-        attributes,
-        options,
-    );
+    unsafe {
+        let status = NtDuplicateObject(
+            source_process_handle.into_param().abi(),
+            source_handle.into_param().abi(),
+            target_process_handle.into_param().abi(),
+            mem::transmute(target_handle.unwrap_or(::std::ptr::null_mut())),
+            access_mask,
+            attributes,
+            options,
+        );
 
-    if status.0 < 0 {
-        Err(windows::core::Error::from_win32())
-    } else {
-        Ok(())
+        if status.0 < 0 {
+            Err(windows::core::Error::from_win32())
+        } else {
+            Ok(())
+        }
     }
 }
 

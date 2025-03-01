@@ -1,8 +1,7 @@
 use crate::state::storage_provider::StorageProvider;
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use std::collections::{HashMap, HashSet};
-use std::iter::Map;
+use std::collections::HashMap;
 
 /// The general behaviour settings
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Type, Default)]

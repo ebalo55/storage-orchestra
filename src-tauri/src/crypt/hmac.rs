@@ -2,7 +2,7 @@ use crate::crypt::salt::make_salt_if_missing;
 use crate::crypt::{DerivedKey, decode, encode};
 use hmac::{Hmac, Mac};
 use sha3::{Digest, Sha3_512};
-use tracing::{debug, error};
+use tracing::error;
 
 pub type HmacSha3_512 = Hmac<Sha3_512>;
 
@@ -58,7 +58,7 @@ pub fn verify_hmac(data: &[u8], key: &[u8], hash: &str) -> bool {
     }
     let key = key.unwrap().key;
 
-    let mut hasher = HmacSha3_512::new_from_slice(&key).map_err(|err| err.to_string());
+    let hasher = HmacSha3_512::new_from_slice(&key).map_err(|err| err.to_string());
     if hasher.is_err() {
         error!("Failed to create hasher: {}", hasher.err().unwrap());
         return false;

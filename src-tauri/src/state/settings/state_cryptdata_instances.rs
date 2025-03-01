@@ -1,8 +1,8 @@
 use crate::crypt::CryptData;
-use crate::state::state::{AppState, AppStateDeep};
+use crate::state::state::AppState;
 use std::sync::Arc;
 use tauri::State;
-use tokio::sync::{RwLock, RwLockWriteGuard};
+use tokio::sync::RwLock;
 
 /// Get the json paths of the crypt data instances in the state
 ///

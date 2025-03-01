@@ -8,7 +8,6 @@ use educe::Educe;
 use key_as_enum::KeysAsEnum;
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use std::rc::Rc;
 use std::sync::Arc;
 use tauri::async_runtime::RwLock;
 use tokio::sync::Mutex;
