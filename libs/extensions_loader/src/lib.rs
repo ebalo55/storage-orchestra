@@ -87,7 +87,7 @@ pub fn load_extensions(app: AppHandle) -> Result<(), String> {
         drop(extensions);
 
         let app = app.clone();
-        tauri::async_runtime::spawn(async move {
+        tauri::async_runtime::spawn_blocking(|| async move {
             if let Err(err) = extension.run(app.clone()) {
                 error!("Failed to run extension '{}': {}", extension.name(), err);
             }
