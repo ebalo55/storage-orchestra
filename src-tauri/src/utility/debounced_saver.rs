@@ -115,3 +115,62 @@ impl DebouncedSaver {
         });
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::sync::mpsc;
+    use tokio::time::timeout;
+
+    #[tokio::test]
+    async fn test_debounced_saver_new() {
+        let saver = DebouncedSaver::new(100);
+        assert_eq!(saver.delay, Duration::from_millis(100));
+    }
+
+    #[tokio::test]
+    async fn test_debounced_saver_default() {
+        let saver = DebouncedSaver::default();
+        assert_eq!(saver.delay, Duration::from_millis(100));
+    }
+
+    #[tokio::test]
+    async fn test_debounced_saver_save() {
+        let saver = DebouncedSaver::new(100);
+        let (tx, mut rx) = mpsc::channel(1);
+
+        saver
+            .save("test content".to_string(), move |content| {
+                let tx = tx.clone();
+                async move {
+                    tx.send(content).await.unwrap();
+                    Ok(())
+                }
+            })
+            .await;
+
+        let result = timeout(Duration::from_secs(1), rx.recv()).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().unwrap(), "test content");
+    }
+
+    #[tokio::test]
+    async fn test_debounced_saver_save_error() {
+        let saver = DebouncedSaver::new(100);
+        let (tx, mut rx) = mpsc::channel(1);
+
+        saver
+            .save("test content".to_string(), move |_content| {
+                let tx = tx.clone();
+                async move {
+                    tx.send("error".to_string()).await.unwrap();
+                    Err("save error".to_string())
+                }
+            })
+            .await;
+
+        let result = timeout(Duration::from_secs(1), rx.recv()).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().unwrap(), "error");
+    }
+}
