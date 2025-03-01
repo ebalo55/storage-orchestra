@@ -18,8 +18,7 @@ pub trait Extension: Send + Sync {
     /// A description of the extension.
     fn description(&self) -> String;
     /// The entry point of the extension.
-    fn run(&self, app: *mut Box<AppHandle>, runtime: *mut Box<RuntimeHandle>)
-    -> Result<(), String>;
+    fn run(&self, app: *mut AppHandle, runtime: *mut RuntimeHandle) -> Result<(), String>;
 }
 
 /// Creates a pointer to a Box<T> from a value.
@@ -31,7 +30,7 @@ pub trait Extension: Send + Sync {
 /// # Returns
 ///
 /// A pointer to a Box<T>.
-pub fn make_light_pointer<T>(value: T) -> *mut Box<T> {
+pub fn make_light_pointer<T>(value: T) -> *mut T {
     Box::into_raw(Box::new(value))
 }
 
