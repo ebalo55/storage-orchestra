@@ -3,7 +3,7 @@ mod hash_whitelist;
 mod signature_verifier;
 mod trusted_hashes;
 
-use crate::extensions::{EXTENSIONS, load_extension, make_light_pointer};
+use crate::extensions::{EXTENSIONS, load_extension};
 use crate::hash_whitelist::is_hash_trusted;
 use crate::signature_verifier::verify_signature;
 pub use extensions::Extension;
