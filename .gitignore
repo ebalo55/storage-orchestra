@@ -27,3 +27,5 @@ dist-ssr
 # test extensions
 extensions
 !extensions/.gitkeep
+src-tauri/extensions
+!src-tauri/extensions/.gitkeep

@@ -1,6 +1,7 @@
 use libloading::Library;
 use std::sync::RwLock;
 use tauri::AppHandle;
+use tauri::async_runtime::RuntimeHandle;
 
 pub static EXTENSIONS: RwLock<Vec<Box<dyn Extension>>> = RwLock::new(vec![]);
 pub static LIBRARIES: RwLock<Vec<Library>> = RwLock::new(vec![]);
@@ -17,7 +18,21 @@ pub trait Extension: Send + Sync {
     /// A description of the extension.
     fn description(&self) -> String;
     /// The entry point of the extension.
-    fn run(&self, app: AppHandle) -> Result<(), String>;
+    fn run(&self, app: *mut Box<AppHandle>, runtime: *mut Box<RuntimeHandle>)
+    -> Result<(), String>;
+}
+
+/// Creates a pointer to a Box<T> from a value.
+///
+/// # Arguments
+///
+/// * `value` - The value to create a pointer to.
+///
+/// # Returns
+///
+/// A pointer to a Box<T>.
+pub fn make_light_pointer<T>(value: T) -> *mut Box<T> {
+    Box::into_raw(Box::new(value))
 }
 
 /// Loads a dynamic library and ensures it follows the `Extension` trait.

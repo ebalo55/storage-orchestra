@@ -1,5 +1,6 @@
 use extensions_loader::Extension;
 use extensions_loader::tauri::AppHandle;
+use extensions_loader::tauri::async_runtime::RuntimeHandle;
 
 struct SampleExtension;
 
@@ -20,8 +21,9 @@ impl Extension for SampleExtension {
         "A sample extension for the extensions loader.".to_string()
     }
 
-    fn run(&self, _app: AppHandle) {
+    fn run(&self, _app: AppHandle, _runtime: RuntimeHandle) -> Result<(), String> {
         println!("Sample Extension Loaded Successfully!");
+        Ok(())
     }
 }
 

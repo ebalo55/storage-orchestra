@@ -1,7 +1,15 @@
-import { ComboboxData, Select, Skeleton } from "@mantine/core";
-import { title } from "radash";
-import { FC, useMemo, useRef } from "react";
-import { useProviders } from "../../../../hooks/use-providers.ts";
+import {
+    ComboboxData,
+    Select,
+    Skeleton,
+} from "@mantine/core";
+import {title} from "radash";
+import {
+    FC,
+    useMemo,
+    useRef,
+} from "react";
+import {useProviders} from "../../../../hooks/use-providers.ts";
 import {
     DefaultPageGeneralGroup,
     DefaultPageGroups,
@@ -9,7 +17,7 @@ import {
     SettingsResult,
     StorageProvider,
 } from "../../../../tauri-bindings.ts";
-import { SettingRow } from "../../setting-row.tsx";
+import {SettingRow} from "../../setting-row.tsx";
 
 interface DefaultPageProps {
     settings?: Settings;
@@ -109,7 +117,7 @@ export const DefaultPage: FC<DefaultPageProps> = ({settings, updateSettings, ref
             },
             {
                 group: "Providers",
-                items: providers.map((provider) => (
+                items: providers.map((provider, i) => (
                     {
                         label: `${ title(provider.provider) } - ${ provider.owner }`,
                         value: `${ provider.provider }-${ provider.owner }`,

@@ -3,7 +3,7 @@ mod hash_whitelist;
 mod signature_verifier;
 mod trusted_hashes;
 
-use crate::extensions::{EXTENSIONS, load_extension};
+use crate::extensions::{EXTENSIONS, load_extension, make_light_pointer};
 use crate::hash_whitelist::is_hash_trusted;
 use crate::signature_verifier::verify_signature;
 pub use extensions::Extension;
@@ -80,7 +80,11 @@ pub fn load_extensions(app: AppHandle) -> Result<(), String> {
             extension.version(),
             extension.author()
         );
-        extension.run(app.clone());
+
+        let _ = extension.run(
+            make_light_pointer(app.clone()),
+            make_light_pointer(tauri::async_runtime::handle()),
+        );
 
         let mut extensions = EXTENSIONS.write().unwrap();
         extensions.push(extension);
