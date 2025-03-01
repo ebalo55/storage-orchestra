@@ -42,3 +42,72 @@ pub fn is_hash_trusted(path: &str) -> bool {
         Err(_) => false,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+    use std::io::Write;
+
+    fn create_test_file(path: &str, content: &[u8]) {
+        let mut file = File::create(path).unwrap();
+        file.write_all(content).unwrap();
+    }
+
+    #[test]
+    fn test_hash_file_success() {
+        let path = "test_file.txt";
+        let content = b"test content";
+        create_test_file(path, content);
+
+        let result = hash_file(path);
+        assert!(result.is_ok());
+
+        // Clean up
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn test_hash_file_failure() {
+        let path = "non_existent_file.txt";
+        let result = hash_file(path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_is_hash_trusted_true() {
+        let path = "trusted_file.txt";
+        let content = b"trusted content";
+        create_test_file(path, content);
+
+        // Add the hash of the content to the trusted hashes
+        let hash = hash_file(path).unwrap();
+        // dbg!(hash);
+
+        let result = is_hash_trusted(path);
+        assert!(result);
+
+        // Clean up
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn test_is_hash_trusted_false() {
+        let path = "untrusted_file.txt";
+        let content = b"untrusted content";
+        create_test_file(path, content);
+
+        let result = is_hash_trusted(path);
+        assert!(!result);
+
+        // Clean up
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn test_is_hash_trusted_file_not_found() {
+        let path = "non_existent_file.txt";
+        let result = is_hash_trusted(path);
+        assert!(!result);
+    }
+}

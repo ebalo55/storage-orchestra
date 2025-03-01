@@ -1173,8 +1173,11 @@ dependencies = [
  "base64ct",
  "libloading 0.8.6",
  "minisign-verify",
+    "serde_json",
  "sha3",
  "tauri",
+    "tauri-build",
+    "tauri-utils",
  "tracing",
 ]
 
