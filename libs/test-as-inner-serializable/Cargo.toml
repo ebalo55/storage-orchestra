@@ -1,0 +1,12 @@
+[package]
+name = "test-as-inner-serializable"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+as-inner-serializable = { path = "../as-inner-serializable" }
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+specta = { version = "=2.0.0-rc.22", features = ["derive", "serde", "serde_json", "tokio"] }
+tauri = "2"

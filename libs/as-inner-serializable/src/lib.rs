@@ -153,7 +153,7 @@ pub fn provider_data_derive(input: TokenStream) -> TokenStream {
     };
 
     let expanded = quote! {
-        #[derive(Debug, Clone, Serialize, Deserialize, Default, Type)]
+        #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default, specta::Type)]
         pub struct #inner_name {
             #(#fields,)*
         }
@@ -269,4 +269,40 @@ fn is_option_arc_rwlock(ty: &Type) -> bool {
         }
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quote::ToTokens;
+    use syn::parse_quote;
+
+    #[test]
+    fn test_strip_option_arc_rwlock() {
+        let ty: Type = parse_quote!(Option<Arc<RwLock<String>>>);
+        let stripped = strip_option_arc_rwlock(&ty);
+        let expected: Type = parse_quote!(Option<String>);
+        assert_eq!(
+            stripped.to_token_stream().to_string(),
+            expected.to_token_stream().to_string()
+        );
+    }
+
+    #[test]
+    fn test_is_arc_rwlock() {
+        let ty: Type = parse_quote!(Arc<RwLock<String>>);
+        assert!(is_arc_rwlock(&ty));
+    }
+
+    #[test]
+    fn test_is_rwlock() {
+        let ty: Type = parse_quote!(RwLock<String>);
+        assert!(is_rwlock(&ty));
+    }
+
+    #[test]
+    fn test_is_option_arc_rwlock() {
+        let ty: Type = parse_quote!(Option<Arc<RwLock<String>>>);
+        assert!(is_option_arc_rwlock(&ty));
+    }
 }

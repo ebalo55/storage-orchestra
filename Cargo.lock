@@ -91,8 +91,9 @@ dependencies = [
 name = "as-inner-serializable"
 version = "0.1.0"
 dependencies = [
- "proc-macro2",
  "quote",
+    "serde",
+    "specta",
  "syn 1.0.109",
 ]
 
@@ -5030,6 +5031,17 @@ dependencies = [
  "futf",
  "mac",
  "utf-8",
+]
+
+[[package]]
+name = "test-as-inner-serializable"
+version = "0.1.0"
+dependencies = [
+    "as-inner-serializable",
+    "serde",
+    "specta",
+    "tauri",
+    "tokio",
 ]
 
 [[package]]
